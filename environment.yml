@@ -1,0 +1,14 @@
+name: fnirs
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - scipy
+  - matplotlib
+  - jupyter
+  - ipympl
+  - statsmodels
+  - mne
+  - mne-qt-browser
+  - scikit-learn
