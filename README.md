@@ -13,7 +13,15 @@ sudo apt -y upgrade
 ### Install Node
 
 ``` sh
-sudo apt install nodejs
+sudo apt install -y nodejs
+```
+
+### Install Graphics Dependencies
+
+> These are probably more than necessary
+
+``` sh
+sudo apt install -y ffmpeg libsm6 libxext6 python-qt4 libgl1-mesa-glx xvfb
 ```
 
 ### Install Miniconda

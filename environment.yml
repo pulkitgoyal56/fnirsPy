@@ -12,3 +12,10 @@ dependencies:
   - mne
   - mne-qt-browser
   - scikit-learn
+  # - mesalib # probably already installed 
+  # - pyvista # probably already installed
+  # - pyvistaqt # probably already installed
+  # - vtk>=9.2=*osmesa* # https://mne.tools/stable/install/advanced.html#installing-to-a-headless-linux-server
+  - pyvirtualdisplay # optional
+  # - xvfb # not really required 
+  # - xvfbwrapper # not really required
