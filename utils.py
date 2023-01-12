@@ -2,18 +2,18 @@
 # coding: utf-8
 
 """
-Miscellaneous functions and class for fNIRS data processings (mostly in context of using MNE).
+Miscellaneous functions and classes for fNIRS data processings (mostly in context of using MNE).
 """
 
 import re
 
 def is_short_channel(channel):
-    """_summary_
+    """Check if channel is short based on its name.
 
     Parameters
     ----------
     channel : str
-        Channel name
+        Channel name.
 
     Returns
     -------
