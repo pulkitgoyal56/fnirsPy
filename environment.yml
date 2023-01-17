@@ -10,6 +10,7 @@ dependencies:
   - ipympl
   - statsmodels
   - mne
+  - mne-nirs
   - mne-qt-browser
   - scikit-learn
   # - mesalib # probably already installed 
