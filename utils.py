@@ -62,40 +62,40 @@ def is_short_channel(channel):
     return re.compile(r'S(\d+)_D\1').match(channel)
 
 def find_short_channels(channels):
-    """Find short channels.
+    """Find short channels from names.
 
     Parameters
     ----------
     channels : array-like
-        List of channels.
+        List of channel names.
 
     Returns
     -------
     list
-        List of short channels.
+        List of short channels (names).
     list
         List of indices of short channels.
     """
-    sc_dict = {i: ch for i, ch in enumerate(channels) if is_short_channel(ch)}
-    return list(sc_dict.values()), list(sc_dict.keys())
+    selectors = map(is_short_channel, channels)
+    return list(compress(channels, selectors)), list(compress(range(len(channels)), selectors))
 
 def find_long_channels(channels):
-    """Find long channels.
+    """Find long channels from names.
 
     Parameters
     ----------
     channels : array-like
-        List of channels.
+        List of channel names.
 
     Returns
     -------
     list
-        List of long channels.
+        List of long channels (names).
     list
         List of indices of long channels.
     """
-    lc_dict = {i: ch for i, ch in enumerate(channels) if not is_short_channel(ch)}
-    return list(lc_dict.values()), list(lc_dict.keys())
+    selectors = map(lambda ch: not is_short_channel(ch), channels)
+    return list(compress(channels, selectors)), list(compress(range(len(channels)), selectors))
 
 def select_best_wavelengths(wavelengths, *args):
     pass
