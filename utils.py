@@ -76,8 +76,7 @@ def find_short_channels(channels):
     list
         List of indices of short channels.
     """
-    selectors = map(is_short_channel, channels)
-    return list(compress(channels, selectors)), list(compress(range(len(channels)), selectors))
+    return list(filter(is_short_channel, channels)), list(compress(range(len(channels)), map(is_short_channel, channels)))
 
 def find_long_channels(channels):
     """Find long channels from names.
@@ -94,8 +93,8 @@ def find_long_channels(channels):
     list
         List of indices of long channels.
     """
-    selectors = map(lambda ch: not is_short_channel(ch), channels)
-    return list(compress(channels, selectors)), list(compress(range(len(channels)), selectors))
+    is_long_channel = lambda ch: not is_short_channel(ch)
+    return list(filter(is_long_channel, channels)), list(compress(range(len(channels)), map(is_long_channel, channels)))
 
 def select_best_wavelengths(wavelengths, *args):
     pass
