@@ -6,6 +6,45 @@ Miscellaneous functions and classes for fNIRS data processings (mostly in contex
 """
 
 import re
+from itertools import compress
+
+def dec_to_hex(channels):
+    """Converts channel IDs from decimal to hexadecimal.
+
+    Parameters
+    ----------
+    channels : array-like
+        List of channel names with decimal IDs.
+
+    Returns
+    -------
+    array-like
+        List of channel names with hexadecimal IDs.
+    """
+    def convert(channel):
+        s, d, r = re.compile(r'S(\d+)_D(\d+)(.*)').match(channel).groups()
+        return f'S{int(s):X}_D{int(d):X}{r}'
+    
+    return list(map(convert, channels))
+
+def hex_to_dec(channels):
+    """Converts channel IDs from hexadecimal to decimal.
+
+    Parameters
+    ----------
+    channels : array-like
+        List of channel names with hexadecimal IDs.
+
+    Returns
+    -------
+    array-like
+        List of channel names with decimal IDs.
+    """
+    def convert(channel):
+        s, d, r = re.compile(r'S([0-9A-F]+)_D([0-9A-F]+)(.*)').match(channel).groups()
+        return f'S{int(s, base=16)}_D{int(d, base=16)}{r}'
+    
+    return list(map(convert, channels))
 
 def is_short_channel(channel):
     """Check if channel is short based on its name.
