@@ -129,8 +129,11 @@ dmypy.json
 .pyre/
 
 # Data
-/data/*
-!data/custom_optode.elc
+/data/misc
+/data/*/sub-*/ses-*/*
+!/data/**/*.toml
+!/data/*/sub-*/ses-*/*.elc
+# !/data/*/sub-*/ses-*/*.toml
 
 # Hidden dirs
 .*/

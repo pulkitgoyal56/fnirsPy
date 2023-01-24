@@ -1,0 +1,26 @@
+# Wavelengths to consider (can choose two -- limitation of MNE, see issue https://github.com/mne-tools/mne-python/issues/9816)
+WAVELENGTHS_PICKED = [770, 855] # [855, 770, 810, 885]
+
+# Number of probes (optional)
+N_PROBES = 3
+
+# Unused Channels
+CH_UNUSED = [3, 7, 11]
+
+# Source-Detector pairs (all), in Hexadecimal
+# ['S2C_D2C', 'S27_D27', 'S2B_D2B', 'S2C_D2C', 'S2C_D27', 'S2C_D2B', 'S27_D2C', 'S27_D27', 'S27_D2B', 'S2B_D2C', 'S2B_D27', 'S2B_D2B'] # Hexadecimal
+# ['S44_D44', 'S39_D39', 'S43_D43', 'S44_D44', 'S44_D39', 'S44_D43', 'S39_D44', 'S39_D39', 'S39_D43', 'S43_D44', 'S43_D39', 'S43_D43'] # Decimal
+S_D = [
+    'S2C_D2C',
+    'S27_D27',
+    'S2B_D2B',
+    'S2C_D2C',
+    'S2C_D27',
+    'S2C_D2B',
+    'S27_D2C',
+    'S27_D27',
+    'S27_D2B',
+    'S2B_D2C',
+    'S2B_D27',
+    'S2B_D2B'
+]
