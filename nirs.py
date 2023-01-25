@@ -555,14 +555,14 @@ class NIRS:
         fig.suptitle('Block-Averaged Signals Across Trials for Channels and Number of Targets')
         return fig
 
-    def plot_average_waveform(self, fig=None, axs=None):
+    def plot_average_waveform(self, ch_type='hbo', fig=None, axs=None):
         if (fig is None) or (axs is None):
-            fig, axs = plt.subplots(int(len(self.raw.ch_names)/2), self.n_cases, figsize=(20, 10), sharey=True, sharex=True)
+            fig, axs = plt.subplots(self.n_channels, self.n_cases, figsize=(20, 10), sharey=True, sharex=True)
 
         for ax, event in zip(axs.T, self.cases):
-            for ax_i, ch in zip(ax, range(int(len(self.raw.ch_names)/2))):
-                self.evoked_dict[f'{event}/hbo'].plot(picks=ch, show=False, axes=ax_i)
-                ax_i.set_title(f'{event} Targets | {utils.dec_to_hex([self.evoked_dict[f"{event}/hbo"].ch_names[ch]])}')
+            for ax_i, ch in zip(ax, range(self.n_channels)):
+                self.evoked_dict[f'{event}/{ch_type}'].plot(picks=ch, show=False, axes=ax_i)
+                ax_i.set_title(f'{event} Targets | {utils.dec_to_hex([self.evoked_dict[f"{event}/{ch_type}"].ch_names[ch]])}')
 
         return fig
 
