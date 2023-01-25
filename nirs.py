@@ -106,13 +106,13 @@ class NIRS:
 
         self.raw.pick([ch for ch in self.raw.ch_names if int(ch.split()[1]) in wavelengths_picked])
 
-    def set_bad(self, bad_channels):
-        self.BAD_CHANNELS = bad_channels
-
+    def set_bad(self, bad_channels, overwrite=True):
         if isinstance(bad_channels[0], int):
             bad_channels = [self.CH_NAMES[ch] for ch in bad_channels]
 
-        self.raw.info['bads'] = bad_channels
+        self.BAD_CHANNELS = set(bad_channels) if overwrite else self.BAD_CHANNELS.union(set(bad_channels)) 
+
+        self.raw.info['bads'] = list(self.BAD_CHANNELS)
 
     def read_config(self, config_file_path):
         """Read additional configuration."""
@@ -131,6 +131,17 @@ class NIRS:
             self.T_EPOCH_END = float(self.config['T_EPOCH_END'])
             self.T_BASELINE_START = float(self.config['T_BASELINE_START'])
             self.T_BASELINE_END = float(self.config['T_BASELINE_END'])
+
+            self.BAD_CHANNELS = set()
+
+    @property
+    def n_channels(self):
+        """Get number of source detector pairs (channels per wavelength/chromophore)."""
+        # # Do not count channels marked as bad, if all frequencies/chromophores are marked as bad.
+        # # If any of the chromophore is not marked as bad, count it still!
+        # return len(set([ch.split(' ')[0] for ch in nirs.raw.ch_names if ch not in nirs.raw.info['bads']]))
+        
+        return len(set(map(lambda ch: ch.split(' ')[0], self.raw.ch_names))) # int(len(self.raw.ch_names)/2)
 
     def read_raw_fif(self, raw_file_path, config_file_path=None, pick_wavelengths=True, remove_backlight=True):
         self.raw_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0]).with_suffix('.raw.fif')
@@ -525,10 +536,10 @@ class NIRS:
         """Plot raw signals."""
         self.raw.plot(show_scrollbars=False, duration=self.DUR['exp']/3)
 
-    def plot_psd(self, title=None):
+    def plot_psd(self, title=''):
         """View power spectral densities of the signals."""
         fig = self.raw.compute_psd().plot(average=False)
-        fig.suptitle('Filtered and Enhanced Haemoglobin Signals')
+        fig.suptitle(title)
         fig.subplots_adjust(top=0.88)
 
     def plot_sensors_3d(self):
