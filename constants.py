@@ -15,7 +15,7 @@ class DEVICE(object):
     LS_MAX_DIST = 0.10 # m
 
     # Time drift factor
-    TIME_DRIFT_FACTOR = 1.01 
+    TIME_DRIFT_FACTOR = 1.0045 
 
     # Additional device info
     INFO = {
@@ -31,6 +31,11 @@ class DEVICE(object):
 REJECT_CRITERIA = {
     'hbo': 80e-6
 }
+
+F_L = 0.02
+F_H = 0.4
+L_TRANS_BANDWIDTH = 0.01
+H_TRANS_BANDWIDTH = 0.2
 
 HB_CHANNEL_TYPES = ['hbo', 'hbr']
 

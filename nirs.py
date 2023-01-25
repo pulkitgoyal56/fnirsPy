@@ -43,6 +43,9 @@ import constants
 # Custom Functions
 import utils
 
+# Custom MBLL
+import mbll
+
 
 class NIRS:
     def __init__(self, data_dir=constants.DATA_DIR, project=constants.PROJECT, device=constants.DEVICE) -> None:
@@ -182,13 +185,14 @@ class NIRS:
         self.T_REC_START = 0                                                 # fNIRS recording start time, in seconds
         self.T_REC_END = len(raw_fif)/self.F_S                               # fNIRS recording end time, in seconds
 
+        self.raw = raw_fif
+
         # Read '-backlight.raw.fif' file
         # Backlight intensities (for used channels only)
         if remove_backlight:
             backlight_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0] + '-backlight').with_suffix('.raw.fif')
             self.raw_backlight = mne.io.read_raw_fif(backlight_file_path, preload=True).get_data()
-
-        self.raw = raw_fif
+            self.raw = self.backlight_removal()
 
         if pick_wavelengths:
             self.pick_wavelengths()
@@ -299,11 +303,12 @@ class NIRS:
         ## Create mne.io.Raw object
         raw_csv = mne.io.RawArray(data_np, config_csv)
 
+        self.raw = raw_csv
+        
         # Backlight intensities (for used channels only)
         if remove_backlight:
             self.raw_backlight = data_pd['BL'].to_numpy().reshape(-1, self.N_CHANNELS).T
-
-        self.raw = raw_csv
+            self.raw = self.backlight_removal()
 
         if pick_wavelengths:
             self.pick_wavelengths()
@@ -389,7 +394,7 @@ class NIRS:
 
         # Set annotations in the Raw object
         self.raw.set_annotations(mne.Annotations(
-            onset=self.T_EXP_START + self.mat['motion_e'] - self.T_REC_START,
+            onset=self.T_EXP_START + self.mat['motion_e'], # - self.T_REC_START
             duration=[self.DUR['motion']] * len(self.mat),
             description=self.mat['num_targets'].astype(int)
         ))
@@ -426,7 +431,8 @@ class NIRS:
         """Saves objects passed in a dictionary."""
         def wrapper(label):
             def subwrapper(self):
-                savepoints[label] = self.raw
+                if isinstance(savepoints, dict):
+                    savepoints[label] = self.raw
             return subwrapper
         return wrapper
 
@@ -482,6 +488,39 @@ class NIRS:
 
         return self.evoked_dict
 
+    def default_pipeline(self, savepoints=dict(), ppf=constants.PPF):
+        self.process(
+            # Save raw (CW amplitude) signals
+                NIRS.save(savepoints)('CW'),
+            # Convert raw (CW amplitude) to optical density (OD) signals
+                NIRS.wrap(mne.preprocessing.nirs.optical_density),
+                NIRS.save(savepoints)('OD'),
+            # Motion artifact removal -- Temporal Derivative Distribution Repair (TDDR)
+                NIRS.wrap(mne.preprocessing.nirs.tddr),
+                NIRS.save(savepoints)('TDDR'),
+            # Short-channel regression
+                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression, max_dist=constants.DEVICE.SS_MAX_DIST),
+                NIRS.save(savepoints)('SSR'),
+            # Optical Densities -> HbO and HbR concentrations -- Modified Beer Lambert Law (MBLL)
+                # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law, ppf=0.1),
+                NIRS.wrap(mbll.modified_beer_lambert_law, ppf=ppf),
+                NIRS.save(savepoints)('HB'),
+            # Pick long channels
+                NIRS.wrap(mne_nirs.channels.get_long_channels, min_dist=constants.DEVICE.SS_MAX_DIST, max_dist=constants.DEVICE.LS_MAX_DIST),
+                NIRS.save(savepoints)('LS'),
+            # Filter frequencies outside haemodynamic response range
+                NIRS.wrap(mne.filter.FilterMixin.filter, l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH),
+                NIRS.save(savepoints)('FL'),
+            # Negative correlation enhancement
+                NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation),
+                NIRS.save(savepoints)('NCE'),
+            # Get epochs
+                NIRS.get_epochs,
+            # Block average
+                NIRS.block_average
+        )
+        return savepoints
+
     def plot(self):
         """Plot raw signals."""
         self.raw.plot(show_scrollbars=False, duration=self.DUR['exp']/3)
@@ -501,7 +540,7 @@ class NIRS:
         brain.add_sensors(self.raw.info, trans='fsaverage')
         brain.show_view(azimuth=90, elevation=90, distance=500)
     
-    def plot_average_channels(self, clim={'hbo': [-5, 5], 'hbr': [-5, 5]}, fig=None, axes=None):
+    def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axes=None):
         if (fig is None) or (axes is None):
             fig, axs = plt.subplots(2, self.n_cases, figsize=(18, 6))
 
@@ -516,6 +555,16 @@ class NIRS:
         fig.suptitle('Block-Averaged Signals Across Trials for Channels and Number of Targets')
         return fig
 
+    def plot_average_waveform(self, fig=None, axes=None):
+        if (fig is None) or (axes is None):
+            fig, axs = plt.subplots(int(len(self.raw.ch_names)/2), self.n_cases, figsize=(20, 10), sharey=True, sharex=True)
+
+        for ax, event in zip(axs.T, self.cases):
+            for ax_i, ch in zip(ax, range(int(len(self.raw.ch_names)/2))):
+                self.evoked_dict[f'{event}/hbo'].plot(picks=ch, show=False, axes=ax_i)
+                ax_i.set_title(f'{event} Targets | {utils.dec_to_hex([self.evoked_dict[f"{event}/hbo"].ch_names[ch]])}')
+
+        return fig
 
 if __name__ == '__main__':
     pass
