@@ -1,7 +1,7 @@
 # ASA electrode file
 ReferenceLabel	avg
 UnitPosition	mm
-NumberPositions=	17
+NumberPositions=	19
 Positions
 8.196	76.137	-88.510
 16.202	52.533	-214.058
