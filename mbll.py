@@ -52,6 +52,8 @@ def modified_beer_lambert_law(raw, ppf=constants.PPF):
                          'Large distances will result in invalid data, and are '
                          'likely due to optode locations being stored in a '
                          ' unit other than meters.')
+    if isinstance(ppf, (int, float)):
+        ppf = {wavelength: float(ppf) for wavelength in freqs}
     rename = dict()
     for ii, jj in zip(picks[::2], picks[1::2]):
         EL = abs_coef * distances[ii] * np.array([ppf[int(raw.info['chs'][ii]['loc'][9])], ppf[int(raw.info['chs'][jj]['loc'][9])]])[:, None]
