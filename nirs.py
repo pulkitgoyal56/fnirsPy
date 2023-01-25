@@ -540,8 +540,8 @@ class NIRS:
         brain.add_sensors(self.raw.info, trans='fsaverage')
         brain.show_view(azimuth=90, elevation=90, distance=500)
     
-    def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axes=None):
-        if (fig is None) or (axes is None):
+    def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None):
+        if (fig is None) or (axs is None):
             fig, axs = plt.subplots(2, self.n_cases, figsize=(18, 6))
 
         for ax, event in zip(axs.T, self.cases):
@@ -555,8 +555,8 @@ class NIRS:
         fig.suptitle('Block-Averaged Signals Across Trials for Channels and Number of Targets')
         return fig
 
-    def plot_average_waveform(self, fig=None, axes=None):
-        if (fig is None) or (axes is None):
+    def plot_average_waveform(self, fig=None, axs=None):
+        if (fig is None) or (axs is None):
             fig, axs = plt.subplots(int(len(self.raw.ch_names)/2), self.n_cases, figsize=(20, 10), sharey=True, sharex=True)
 
         for ax, event in zip(axs.T, self.cases):
