@@ -2,11 +2,13 @@
 # coding: utf-8
 
 """
-Miscellaneous functions and classes for fNIRS data processings (mostly in context of using MNE).
+Miscellaneous functions for fNIRS data processing (mostly in context of using MNE).
 """
 
-import re
+# Additional Inbuilt Utilities
 from itertools import compress
+# Regex
+import re
 
 def dec_to_hex(channels):
     """Converts channel IDs from decimal to hexadecimal.
@@ -61,6 +63,8 @@ def is_short_channel(channel):
     """
     return re.compile(r'S(\d+)_D\1').match(channel)
 
+is_long_channel = lambda channel: not is_short_channel(channel)
+
 def find_short_channels(channels):
     """Find short channels from names.
 
@@ -93,7 +97,6 @@ def find_long_channels(channels):
     list
         List of indices of long channels.
     """
-    is_long_channel = lambda ch: not is_short_channel(ch)
     return list(filter(is_long_channel, channels)), list(compress(range(len(channels)), map(is_long_channel, channels)))
 
 def select_best_wavelengths(wavelengths, *args):
