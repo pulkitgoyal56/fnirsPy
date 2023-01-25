@@ -80,6 +80,17 @@ class NIRS:
 
         return self.raw
 
+    def pick_channels(self):
+        # TODO: Automatic channel selection -- Heart-rate based.
+        # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
+        # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
+        # > Extraction of heart rate from functional near-infrared spectroscopy in infants.
+        # > Journal of Biomedical Optics 19, 067010. doi:10.1117/1.JBO.19.6.067010  
+        # > https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4073682/  
+        # 
+        # TODO: Automatic channel selection -- RMS-threshold based.
+        pass
+
     def pick_wavelengths(self, wavelengths_picked=None):
         wavelengths_picked = self.__attr('WAVELENGTHS_PICKED', wavelengths_picked)
 

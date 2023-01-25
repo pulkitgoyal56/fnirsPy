@@ -100,6 +100,7 @@ def find_long_channels(channels):
     return list(filter(is_long_channel, channels)), list(compress(range(len(channels)), map(is_long_channel, channels)))
 
 def select_best_wavelengths(wavelengths, *args):
+    # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
     pass
 
 if __name__ == '__main__':
