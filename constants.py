@@ -33,3 +33,15 @@ REJECT_CRITERIA = {
 }
 
 HB_CHANNEL_TYPES = ['hbo', 'hbr']
+
+# The partial pathlength factors for different frequencies
+PPF = {
+    770: 6.18052629,
+    774: 6.18052629,
+    810: 5.930508,
+    817: 5.930508,
+    855: 5.50968514,
+    865: 5.50968514,
+    885: 5.17117029, # Guessed
+    892: 5.17117029  # Guessed
+}
