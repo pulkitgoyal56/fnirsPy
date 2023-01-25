@@ -64,3 +64,14 @@ S_D = [
 
 # Unused Channels
 CH_UNUSED = []
+
+# Time of start of experiment
+T_EXP_START = 0 # -0.1
+
+# Start and end time of the epochs in seconds, relative to the time-locked event
+T_EPOCH_START = -5
+T_EPOCH_END = 15
+
+# Start and end time of the baseline in seconds, relative to the time-locked event
+T_BASELINE_START = -5
+T_BASELINE_END = 0

@@ -7,9 +7,6 @@ N_PROBES = 3
 # Number of hemispheres from which data is collected
 N_HEMISPHERES = 1
 
-# Unused Channels
-CH_UNUSED = [3, 7, 11]
-
 # Source-Detector pairs (all), in Hexadecimal
 # ['S2C_D2C', 'S27_D27', 'S2B_D2B', 'S2C_D2C', 'S2C_D27', 'S2C_D2B', 'S27_D2C', 'S27_D27', 'S27_D2B', 'S2B_D2C', 'S2B_D27', 'S2B_D2B'] # Hexadecimal
 # ['S44_D44', 'S39_D39', 'S43_D43', 'S44_D44', 'S44_D39', 'S44_D43', 'S39_D44', 'S39_D39', 'S39_D43', 'S43_D44', 'S43_D39', 'S43_D43'] # Decimal
@@ -27,3 +24,17 @@ S_D = [
     'S2B_D27',
     'S2B_D2B'
 ]
+
+# Unused Channels
+CH_UNUSED = [3, 7, 11]
+
+# Time of start of experiment
+T_EXP_START = 0 # -0.1
+
+# Start and end time of the epochs in seconds, relative to the time-locked event
+T_EPOCH_START = -5
+T_EPOCH_END = 15
+
+# Start and end time of the baseline in seconds, relative to the time-locked event
+T_BASELINE_START = -5
+T_BASELINE_END = 0
