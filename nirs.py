@@ -43,6 +43,7 @@ import constants
 # Custom Functions
 import utils
 
+
 class NIRS:
     def __init__(self, data_dir=constants.DATA_DIR, project=constants.PROJECT, device=constants.DEVICE) -> None:
         self.DATA_DIR = data_dir
@@ -448,6 +449,9 @@ class NIRS:
         # Extract events of interest
         self.events, self.event_dict = mne.events_from_annotations(self.raw)
 
+        self.cases = list(self.event_dict.keys())
+        self.n_cases = len(self.cases)
+
         self.epochs = mne.Epochs(
             self.raw, self.events, event_id=self.event_dict,
             tmin=self.T_EPOCH_START, tmax=self.T_EPOCH_END,
@@ -477,6 +481,41 @@ class NIRS:
                 self.evoked_dict[condition].rename_channels(lambda x: x[:-4])
 
         return self.evoked_dict
+
+    def plot(self):
+        """Plot raw signals."""
+        self.raw.plot(show_scrollbars=False, duration=self.DUR['exp']/3)
+
+    def plot_psd(self, title=None):
+        """View power spectral densities of the signals."""
+        fig = self.raw.compute_psd().plot(average=False)
+        fig.suptitle('Filtered and Enhanced Haemoglobin Signals')
+        fig.subplots_adjust(top=0.88)
+
+    def plot_sensors_3d(self):
+        """Show sensors on fsaverage brain."""
+        subjects_dir = os.path.join(mne.datasets.sample.data_path(), 'subjects')
+        mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir)
+        brain = mne.viz.Brain('fsaverage', subjects_dir=subjects_dir, alpha=0.5, cortex='low_contrast')
+        brain.add_head()
+        brain.add_sensors(self.raw.info, trans='fsaverage')
+        brain.show_view(azimuth=90, elevation=90, distance=500)
+    
+    def plot_average_channels(self, clim={'hbo': [-5, 5], 'hbr': [-5, 5]}, fig=None, axes=None):
+        if (fig is None) or (axes is None):
+            fig, axs = plt.subplots(2, self.n_cases, figsize=(18, 6))
+
+        for ax, event in zip(axs.T, self.cases):
+            self.epochs[event].average().plot_image(axes=ax, clim=clim, show=False)
+            ax[0].set_xlabel(None)
+            ax[0].set_title(f'{event} Targets | HbO')
+            ax[1].set_title(f'{event} Targets | HbR')
+            for ax_i in ax:
+                ax_i.axvline(0, c='k', ls='--', lw=0.9)
+
+        fig.suptitle('Block-Averaged Signals Across Trials for Channels and Number of Targets')
+        return fig
+
 
 if __name__ == '__main__':
     pass
