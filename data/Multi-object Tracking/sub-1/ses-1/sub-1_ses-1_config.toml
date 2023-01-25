@@ -4,6 +4,9 @@ WAVELENGTHS_PICKED = [770, 855] # [855, 770, 810, 885]
 # Number of probes (optional)
 N_PROBES = 3
 
+# Number of hemispheres from which data is collected
+N_HEMISPHERES = 1
+
 # Unused Channels
 CH_UNUSED = [3, 7, 11]
 
