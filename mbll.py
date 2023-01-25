@@ -14,19 +14,17 @@ from mne.io.constants import FIFF
 from mne.utils import _validate_type
 from mne.preprocessing.nirs import source_detector_distances, _validate_nirs_info
 
-from nirs import NIRS
 import constants
 
-
-def modified_beer_lambert_law(self, ppf=None):
+def modified_beer_lambert_law(raw, ppf=constants.PPF):
     r"""Convert NIRS optical density data to haemoglobin concentration.
 
     Parameters
     ----------
     raw : instance of Raw
         The optical density data.
-    ppf : float
-        The partial pathlength factor.
+    ppf : array-like
+        The partial pathlength factors for the picked frequencies.
 
     Returns
     -------
@@ -34,10 +32,9 @@ def modified_beer_lambert_law(self, ppf=None):
         The modified raw instance.
     """
     from scipy import linalg
-    raw = self.raw.copy().load_data()
+    raw = raw.copy().load_data()
     _validate_type(raw, BaseRaw, 'raw')
     # _validate_type(ppf, 'numeric', 'ppf')
-    ppf = np.array(NIRS._NIRS__attr(self, 'PPF', ppf))
     picks = _validate_nirs_info(raw.info, fnirs='od', which='Beer-lambert')
     # This is the one place we *really* need the actual/accurate frequencies
     freqs = np.array([raw.info['chs'][pick]['loc'][9] for pick in picks], float)
@@ -57,7 +54,7 @@ def modified_beer_lambert_law(self, ppf=None):
                          ' unit other than meters.')
     rename = dict()
     for ii, jj in zip(picks[::2], picks[1::2]):
-        EL = abs_coef * distances[ii] * ppf[:, None]
+        EL = abs_coef * distances[ii] * np.array([ppf[int(raw.info['chs'][ii]['loc'][9])], ppf[int(raw.info['chs'][jj]['loc'][9])]])[:, None]
         iEL = linalg.pinv(EL)
 
         raw._data[[ii, jj]] = iEL @ raw._data[[ii, jj]] * 1e-3

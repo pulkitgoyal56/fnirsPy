@@ -107,7 +107,6 @@ class NIRS:
             self.config = tomli.load(f)
 
             self.WAVELENGTHS_PICKED = self.config['WAVELENGTHS_PICKED']
-            self.PPF = [float(constants.PPF[wavelength]) for wavelength in self.WAVELENGTHS_PICKED]
             self.N_PROBES = int(self.config['N_PROBES'])
             self.N_HEMISPHERES = int(self.config['N_HEMISPHERES'])
             self.S_D = utils.hex_to_dec(self.config['S_D'])
