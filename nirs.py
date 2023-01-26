@@ -31,9 +31,6 @@ import statsmodels.api as sm
 import mne
 import mne_nirs # esp. for fNIRS
 
-# Misc. (custom)
-import utils
-
 # Read Data Specific Configuration/Metadata Files
 import tomli
 
