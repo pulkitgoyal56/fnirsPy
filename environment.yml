@@ -10,6 +10,7 @@ dependencies:
   - jupyter
   - ipympl
   - statsmodels
+  - tomli
   - mne
   - mne-nirs
   - mne-qt-browser
