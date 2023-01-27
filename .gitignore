@@ -137,3 +137,6 @@ dmypy.json
 
 # Hidden dirs
 .*/
+
+# Objects with end .ignore
+*.ignore*
