@@ -28,9 +28,7 @@ class DEVICE(object):
 # Maximum threshold for channel rejection
 # Reject epochs based on maximum peak-to-peak (PTP) signal amplitude, i.e. the absolute difference between the lowest and the highest signal value.
 # If the PTP signal amplitude of any one channel exceeds the rejection threshold, the respective epoch will be dropped.
-REJECT_CRITERIA = {
-    'hbo': 80e-6
-}
+REJECT_CRITERIA = None # {'hbo': 80e-6}
 
 F_L = 0.02
 F_H = 0.4
@@ -40,6 +38,7 @@ H_TRANS_BANDWIDTH = 0.2
 HB_CHANNEL_TYPES = ['hbo', 'hbr']
 
 # The partial pathlength factors for different frequencies
+# See - https://github.com/mne-tools/mne-python/pull/9843
 PPF = {
     770: 6.18052629,
     774: 6.18052629,
@@ -51,13 +50,13 @@ PPF = {
     892: 5.17117029
 }
 
-
 # Expected locations of reference points (at least 4 points are required to recreate mapping)
 MNI_REFERENCE_LOCATIONS = {
     'nasion': (0.0083, 86.8110, -39.9830),
     'lpa': (-86.0761, -19.9897, -47.9860),
     'rpa': (85.7939, -20.0093, -48.0310),
-    'Cz': (0.4009, -9.1670, 100.2440)
+    'Cz': (0.4009, -9.1670, 100.2440),
+    'IPS': (34., -54., 40.)
 }
 
 DEFAULT_REFERENCE_LOCATIONS = MNI_REFERENCE_LOCATIONS

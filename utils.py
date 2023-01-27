@@ -15,6 +15,7 @@ from itertools import compress
 from functools import partial
 
 # Regex
+# TIP - Use regexr.com to create/test/learn Regex
 import re
 
 # Array
@@ -133,7 +134,6 @@ def has_location(source, pos):
                 return source.get_positions()[pos] is not None
             else:
                 return pos in source.get_positions()['ch_pos']
-
 
 def get_location(source, pos):
     match source:

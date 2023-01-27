@@ -209,7 +209,7 @@ class NIRS:
 
         return self.raw
 
-    def read_raw_csv(self, raw_file_path, config_file_path, pick_wavelengths=True, remove_backlight=True, **kwargs):
+    def read_raw_csv(self, raw_file_path, config_file_path, pick_wavelengths=True, remove_backlight=True, ch_type='fnirs_cw_amplitude', **kwargs):
         self.raw_file_path = pathlib.Path(raw_file_path).with_suffix('.csv')
 
         if config_file_path:
@@ -272,10 +272,10 @@ class NIRS:
         ## Create mne.Info object
         # Type of channels -- Raw fNIRS Continuous Wave Amplitude
         # https://mne.tools/stable/glossary.html#term-data-channels
-        CH_TYPES = 'fnirs_cw_amplitude' # [] * N_CHANNELS * N_WAVELENGTHS_T * N_HEMISPHERES
+        CH_TYPES = ch_type # [] * N_CHANNELS * N_WAVELENGTHS_T * N_HEMISPHERES
 
-        # Create MNE.Info Object
-        config_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=CH_TYPES)
+        # Create mne.Info Object
+        info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=CH_TYPES)
 
         # `Manually update info object parameters for location`
         # > Manual modification is not recommended, but there doesn't seem to any other option as there are no inbuilt functions for this.
@@ -285,23 +285,23 @@ class NIRS:
         # >>> - [0:3] is the midpoint (channel) location (= <source_location + detector_location>/2)
         # >>> - [3:6] is the source location
         # >>> - [6:9] is the detector location
-        # >>> - [9] is the frequency
+        # >>> - [9] is the wavelength
         # >>> - [10] seems to be always `nan`; function unknown
         # >>> - [11] is the separation of the channel, i.e. short (0.007) or long (0.03), in m
-        for chs in config_csv['chs']:
+        for chs in info_csv['chs']:
             # For fNIRS, the 10th element corresponds to the wavelength
             # https://github.com/mne-tools/mne-python/blob/main/mne/preprocessing/nirs/nirs.py#L150
             chs['loc'][9] = float(chs['ch_name'].split()[1])
 
-        for chs in config_csv['chs']:
+        for chs in info_csv['chs']:
             # For fNIRS, the 12th element is the channel separation, i.e. short (0.007) or long (0.03)
             # > No specific reference to this 11th index found in the MNE-Python source code
             # >> Only references to range of values ('[:]' or '[3:]') in device-spcific functions with no apparent applicability to the context here
             chs['loc'][11] = 0.007 if utils.is_short_channel(chs['ch_name']) else 0.03
 
         # Copy other meta data from sample *fif* file
-        config_csv['device_info'] = self.DEVICE.INFO # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
-        config_csv['experimenter'] = self.DEVICE.EXPERIMENTER # 'optoHIVE Team'
+        info_csv['device_info'] = self.DEVICE.INFO # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
+        info_csv['experimenter'] = self.DEVICE.EXPERIMENTER # 'optoHIVE Team'
         # meas_date # datetime.datetime(2022, 12, 16, 14, 36, 20, 620708, tzconfig=datetime.timezone.utc)
         # file_id (== meas_id)
         # meas_id (== file_id)
@@ -311,8 +311,7 @@ class NIRS:
         data_np = np.array(data_pd[data_pd.columns[-self.N_WAVELENGTHS_T:]]).reshape(-1, self.N_CHANNELS * self.N_WAVELENGTHS_T).T
 
         ## Create mne.io.Raw object
-        raw_csv = mne.io.RawArray(data_np, config_csv)
-
+        raw_csv = mne.io.RawArray(data_np, info_csv)
         self.raw = raw_csv
         
         # Backlight intensities (for used channels only)
@@ -396,7 +395,7 @@ class NIRS:
         self.DUR['exp'] = float(sc.io.loadmat(endtime_file_path)['expEnd'])  # <expEnd - exp> -- duration of the entire experiment, in seconds
 
         # Set the duration of the recording
-        self.DUR['rec'] = self.T_REC_END                                     # recording duration, in seconds
+        self.DUR['rec'] = self.T_REC_END     # - self.T_REC_START            # recording duration, in seconds
 
         # Read experiment end time and set start time
         # self.T_EXP_START = 0               # <exp>                         # experiment start time, in seconds; offset due to trigger delay, in seconds
