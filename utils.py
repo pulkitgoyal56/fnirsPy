@@ -5,10 +5,27 @@
 Miscellaneous functions for fNIRS data processing (mostly in context of using MNE).
 """
 
-# Additional Inbuilt Utilities
+# File Path Manipulation
+import pathlib
+
+# Additional Iteration Utilities
 from itertools import compress
+
+# Additional Function Utilities
+from functools import partial
+
 # Regex
 import re
+
+# Array
+import numpy as np
+
+# Additional Configuration/Metadata
+import constants
+
+# MNE Constants
+from mne.defaults import HEAD_SIZE_DEFAULT
+
 
 def dec_to_hex(channels):
     """Converts channel IDs from decimal to hexadecimal.
@@ -102,6 +119,40 @@ def find_long_channels(channels):
 def select_best_wavelengths(wavelengths, *args):
     # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
     pass
+
+def get_location(source, pos):
+    match source:
+        case pathlib.PosixPath() | str(): # source is a filename
+            def _get_line_number(word, file):
+                file.seek(0)
+                for i, words in enumerate(file, 1):
+                    if word == words.split('\n')[0].split('\t')[0]:
+                        return i
+            def _get_word(num, file):
+                file.seek(0)
+                for i, words in enumerate(file, 1):
+                    if num == i:
+                        return words
+            with open(source) as file:
+                line = _get_line_number('Positions', file) - _get_line_number('Labels', file) + _get_line_number(pos, file)
+                return list(map(float, _get_word(line, file).rsplit('\n')[0].split('\t')))
+        case _: # source is a montage
+            if pos in ('nasion', 'lpa', 'rpa'):
+                return source.get_positions()[pos]
+            else:
+                return source.get_positions()['ch_pos'][pos]
+
+def get_transformation(montage, reference=constants.DEFAULT_REFERENCE_LOCATIONS, scale=1/HEAD_SIZE_DEFAULT):
+    """Transform montage based on expected location of reference points."""
+    target = np.array(list(reference.values()))
+    target = np.c_[target, np.ones((len(reference), 1))]
+
+    base = np.array(list(map(partial(get_location, montage), reference.keys()))) * scale
+    base = np.c_[base, np.ones((len(reference), 1))]
+
+    trans = np.linalg.pinv(base) @ target
+
+    return trans.T
 
 if __name__ == '__main__':
     pass

@@ -50,3 +50,15 @@ PPF = {
     885: 5.17117029,
     892: 5.17117029
 }
+
+
+# Expected locations of reference points (at least 4 points are required to recreate mapping)
+MNI_REFERENCE_LOCATIONS = {
+    'nasion': (0.0083, 86.8110, -39.9830),
+    'lpa': (-86.0761, -19.9897, -47.9860),
+    'rpa': (85.7939, -20.0093, -48.0310),
+    'Cz': (0.4009, -9.1670, 100.2440)
+}
+
+DEFAULT_REFERENCE_LOCATIONS = MNI_REFERENCE_LOCATIONS
+DEFAULT_REFERENCE = 'mri'

@@ -65,6 +65,10 @@ S_D = [
 # Unused Channels
 CH_UNUSED = []
 
+# Coordinate frame of the optode locations.
+# Valid coordinate frames are 'meg', 'mri', 'mri_voxel', 'head', 'mri_tal', 'ras', 'fs_tal', 'ctf_head', 'ctf_meg', 'unknown'.
+COORD_FRAME = 'unknown'
+
 # Time of start of experiment
 T_EXP_START = 0 # -0.1
 
