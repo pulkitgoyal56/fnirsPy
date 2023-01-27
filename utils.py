@@ -120,13 +120,28 @@ def select_best_wavelengths(wavelengths, *args):
     # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
     pass
 
+def has_location(source, pos):
+    match source:
+        case pathlib.PosixPath() | str(): # source is a filename
+            with open(source) as file:
+                for words in file:
+                    if pos == re.split('\t| +|\n', words)[0]:
+                        return True
+                return False
+        case _: # source is a montage
+            if pos in ('nasion', 'lpa', 'rpa'):
+                return source.get_positions()[pos] is not None
+            else:
+                return pos in source.get_positions()['ch_pos']
+
+
 def get_location(source, pos):
     match source:
         case pathlib.PosixPath() | str(): # source is a filename
             def _get_line_number(word, file):
                 file.seek(0)
                 for i, words in enumerate(file, 1):
-                    if word == words.split('\n')[0].split('\t')[0]:
+                    if word == re.split('\t| +|\n', words)[0]:
                         return i
             def _get_word(num, file):
                 file.seek(0)
@@ -135,7 +150,7 @@ def get_location(source, pos):
                         return words
             with open(source) as file:
                 line = _get_line_number('Positions', file) - _get_line_number('Labels', file) + _get_line_number(pos, file)
-                return list(map(float, _get_word(line, file).rsplit('\n')[0].split('\t')))
+                return list(map(float, re.split('\t| +', _get_word(line, file).rsplit('\n')[0])))
         case _: # source is a montage
             if pos in ('nasion', 'lpa', 'rpa'):
                 return source.get_positions()[pos]
@@ -144,11 +159,16 @@ def get_location(source, pos):
 
 def get_transformation(montage, reference=constants.DEFAULT_REFERENCE_LOCATIONS, scale=1/HEAD_SIZE_DEFAULT):
     """Transform montage based on expected location of reference points."""
-    target = np.array(list(reference.values()))
-    target = np.c_[target, np.ones((len(reference), 1))]
+    available_pos = list(compress(reference, map(partial(has_location, montage), reference)))
 
-    base = np.array(list(map(partial(get_location, montage), reference.keys()))) * scale
-    base = np.c_[base, np.ones((len(reference), 1))]
+    if len(available_pos) < 4:
+        raise ValueError(f'At least 4 points are requred to get complete transformation.')
+
+    target = np.array([loc for pos, loc in reference.items() if pos in available_pos])
+    target = np.c_[target, np.ones((len(available_pos), 1))]
+
+    base = np.array(list(map(partial(get_location, montage), available_pos))) * scale
+    base = np.c_[base, np.ones((len(available_pos), 1))]
 
     trans = np.linalg.pinv(base) @ target
 

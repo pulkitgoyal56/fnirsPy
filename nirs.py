@@ -409,28 +409,33 @@ class NIRS:
             description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `desciption` argument.
         ))
 
-    def read_montage(self, montage_file_path, transform=True, reference=constants.DEFAULT_REFERENCE_LOCATIONS, **kwargs):
+    def read_montage(self, montage_file_path, augment=True, transform=True, reference=constants.DEFAULT_REFERENCE_LOCATIONS, **kwargs):
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')
         
         montage = mne.channels.read_custom_montage(self.montage_file_path, coord_frame=self.COORD_FRAME)
         # TIP - The montage stores location after dividing by a constant factor of order 3
 
         # Add missing fiducial point nasion coordinates from MNI coordinates if missing
-        if (montage.get_positions()['nasion'] is None) and (montage.get_positions()['coord_frame'] == 'mri'):
+        if augment and (montage.get_positions()['coord_frame'] == 'mri'):
             montage.add_estimated_fiducials('fsaverage', mne.datasets.sample.data_path() / 'subjects')
 
         if transform:
             match reference:
                 case 'default' | dict():
+                    if reference == 'default':
+                        reference = constants.DEFAULT_REFERENCE_LOCATIONS
                     montage.apply_trans(mne.transforms.Transform(fro=self.COORD_FRAME, to=constants.DEFAULT_REFERENCE, 
                         trans=utils.get_transformation(montage, reference,
-                                scale=utils.get_location(self.montage_file_path, 'Nz')[0]/
-                                        utils.get_location(montage, 'nasion')[0])))
+                                scale=utils.get_location(self.montage_file_path, next(iter(montage.get_positions()['ch_pos'])))[0]/
+                                        next(iter(montage.get_positions()['ch_pos'].values()))[0])))
                 case str():
                     # TODO: Add other specific cases and use inbuilt transformations.
                     # see https://github.com/mne-tools/mne-python/blob/maint/1.3/mne/transforms.py#L641
-                    pass
+                    raise ValueError(f'{reference} method is not supported yet.')
+                case _:
+                    raise ValueError(f'Unsupported reference.')
         
+        # montage.plot()
         self.raw.set_montage(montage)
 
     def read(self, subject_id, session, run, **kwargs):
