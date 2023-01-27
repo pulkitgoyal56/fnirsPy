@@ -568,17 +568,17 @@ class NIRS:
         )
         return savepoints
 
-    def plot(self):
+    def plot(self, **kwargs):
         """Plot raw signals."""
-        self.raw.plot(show_scrollbars=False, duration=self.DUR['exp']/3)
+        self.raw.plot(show_scrollbars=False, duration=self.DUR['exp']/3, **kwargs)
 
-    def plot_psd(self, title=''):
+    def plot_psd(self, title='', **kwargs):
         """View power spectral densities of the signals."""
-        fig = self.raw.compute_psd().plot(average=False)
+        fig = self.raw.compute_psd().plot(average=False, **kwargs)
         fig.suptitle(title)
         fig.subplots_adjust(top=0.88)
 
-    def plot_sensors_3d(self):
+    def plot_sensors_3d(self, **kwargs):
         """Show sensors on fsaverage brain."""
         subjects_dir = os.path.join(mne.datasets.sample.data_path(), 'subjects')
         mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir)
@@ -587,7 +587,7 @@ class NIRS:
         brain.add_sensors(self.raw.info, trans='fsaverage')
         brain.show_view(azimuth=90, elevation=90, distance=500)
     
-    def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None):
+    def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None, **kwargs):
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(2, self.n_cases, figsize=(18, 6))
 
@@ -602,13 +602,13 @@ class NIRS:
         fig.suptitle('Block-Averaged Signals Across Trials for Channels and Number of Targets')
         return fig
 
-    def plot_average_waveform(self, ch_type='hbo', fig=None, axs=None):
+    def plot_average_waveform(self, ch_type='hbo', fig=None, axs=None, **kwargs):
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(self.n_channels, self.n_cases, figsize=(20, 10), sharey=True, sharex=True)
 
         for ax, event in zip(axs.T, self.cases):
             for ax_i, ch in zip(ax, range(self.n_channels)):
-                self.evoked_dict[f'{event}/{ch_type}'].plot(picks=ch, show=False, axes=ax_i)
+                self.evoked_dict[f'{event}/{ch_type}'].plot(picks=ch, show=False, axes=ax_i, **kwargs)
                 ax_i.set_title(f'{event} Targets | {utils.dec_to_hex([self.evoked_dict[f"{event}/{ch_type}"].ch_names[ch]])}')
 
         return fig
