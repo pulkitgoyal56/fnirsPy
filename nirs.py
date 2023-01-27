@@ -148,7 +148,7 @@ class NIRS:
         if config_file_path:
             self.read_config(config_file_path)
 
-        # Read '.raw.fif' file
+        # Read '.raw.fif' file and create mne.io.Raw object
         raw_fif = mne.io.read_raw_fif(self.raw_file_path, preload=True)
         # raw_fif.crop(tmin=120) # Delete first 60s for this dataset (idle data)
 
@@ -189,12 +189,27 @@ class NIRS:
         self.CH_NAMES = raw_fif.ch_names
 
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
-        self.F_S = raw_fif.info['sfreq'] # * self.TIME_DRIFT_FACTOR          # fNIRS recording frequency, in Hertz
+        self.F_S = raw_fif.info['sfreq'] * self.TIME_DRIFT_FACTOR            # fNIRS recording frequency, in Hertz
 
         # Set recording start and end times
         self.T_REC_START = 0                                                 # fNIRS recording start time, in seconds
-        self.T_REC_END = len(raw_fif)/self.F_S                               # fNIRS recording end time, in seconds
+        self.T_REC_END = (len(raw_fif) - 1)/self.F_S                         # fNIRS recording end time, in seconds
 
+        # Update sampling frequency
+        # Note - To update certain attributes of the mne.Info object, the state has to manually 'unlocked'
+        #      - This is not recommended, but the alternative to recreate the info object for one change is unacceptable
+        #      - If there are any sync issues with info object, this might be the where to investigate but it likely won't happen
+        #      - The attributes that can be updated without 'unlocking' are
+        #      - > `info['bads']`, `info['description']`, `info['device_info'`] `info['dev_head_t']`, `info['experimenter']`,
+        #      - > `info['helium_info']`, `info['line_freq']`, `info['temp']`, and `info['subject_info']` 
+        #      - "All other entries should be considered read-only, though they can be modified by various MNE-Python functions or methods
+        #      - (which have safeguards to ensure all fields remain in sync)."
+        #      - See - https://mne.tools/stable/generated/mne.Info.html#mne.Info
+        raw_fif.info._unlocked = True
+        raw_fif.info['sfreq'] = self.F_S
+        raw_fif.info._unlocked = False
+
+        # Re-create mne.io.Raw object
         self.raw = raw_fif
 
         # Read '-backlight.raw.fif' file
@@ -269,8 +284,7 @@ class NIRS:
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
         self.F_S = (len(data_pd) - len(self.S_D))/len(self.S_D)/self.T_REC_END         # fNIRS recording frequency, in Hertz
 
-        ## Create mne.Info object
-        # Type of channels -- Raw fNIRS Continuous Wave Amplitude
+        # Create mne.Info object
         # https://mne.tools/stable/glossary.html#term-data-channels
         CH_TYPES = ch_type # [] * N_CHANNELS * N_WAVELENGTHS_T * N_HEMISPHERES
 
@@ -310,9 +324,8 @@ class NIRS:
         # 'CH_USED x N_WAVELENGTHS_T' rows; each corresponding in order to `CH_NAMES`
         data_np = np.array(data_pd[data_pd.columns[-self.N_WAVELENGTHS_T:]]).reshape(-1, self.N_CHANNELS * self.N_WAVELENGTHS_T).T
 
-        ## Create mne.io.Raw object
-        raw_csv = mne.io.RawArray(data_np, info_csv)
-        self.raw = raw_csv
+        # Create mne.io.Raw object
+        self.raw = mne.io.RawArray(data_np, info_csv)
         
         # Backlight intensities (for used channels only)
         if remove_backlight:
@@ -502,7 +515,7 @@ class NIRS:
             **kwargs
         )
 
-        ## Visualise the log of dropped epochs
+        # # Visualise the log of dropped epochs
         # epochs.plot_drop_log()
 
         return self.events, self.event_dict, self.epochs
