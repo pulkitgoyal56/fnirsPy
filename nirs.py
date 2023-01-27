@@ -114,7 +114,7 @@ class NIRS:
 
         self.raw.info['bads'] = list(self.BAD_CHANNELS)
 
-    def read_config(self, config_file_path):
+    def read_config(self, config_file_path, **kwargs):
         """Read additional configuration."""
         self.config_file_path = pathlib.Path(config_file_path).with_suffix('.toml')
 
@@ -142,7 +142,7 @@ class NIRS:
         
         return len(set(map(lambda ch: ch.split(' ')[0], self.raw.ch_names))) # int(len(self.raw.ch_names)/2)
 
-    def read_raw_fif(self, raw_file_path, config_file_path=None, pick_wavelengths=True, remove_backlight=True):
+    def read_raw_fif(self, raw_file_path, config_file_path=None, pick_wavelengths=True, remove_backlight=True, **kwargs):
         self.raw_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0]).with_suffix('.raw.fif')
 
         if config_file_path:
@@ -209,7 +209,7 @@ class NIRS:
 
         return self.raw
 
-    def read_raw_csv(self, raw_file_path, config_file_path, pick_wavelengths=True, remove_backlight=True):
+    def read_raw_csv(self, raw_file_path, config_file_path, pick_wavelengths=True, remove_backlight=True, **kwargs):
         self.raw_file_path = pathlib.Path(raw_file_path).with_suffix('.csv')
 
         if config_file_path:
@@ -325,7 +325,7 @@ class NIRS:
 
         return self.raw
 
-    def read_raw(self, raw_file_path, config_file_path=None, pick_wavelengths=True, remove_backlight=True):
+    def read_raw(self, raw_file_path, config_file_path=None, pick_wavelengths=True, remove_backlight=True, **kwargs):
         raw_file_path = pathlib.Path(raw_file_path)
 
         if raw_file_path.suffix == '':
@@ -337,13 +337,13 @@ class NIRS:
 
         match raw_file_path.suffix:
             case '.csv':
-                return self.read_raw_csv(raw_file_path, config_file_path, pick_wavelengths, remove_backlight)
+                return self.read_raw_csv(raw_file_path, config_file_path, pick_wavelengths, remove_backlight, **kwargs)
             case '.fif':
-                return self.read_raw_fif(raw_file_path, config_file_path, pick_wavelengths, remove_backlight)
+                return self.read_raw_fif(raw_file_path, config_file_path, pick_wavelengths, remove_backlight, **kwargs)
             case other:
                 raise ValueError(f'Unsupported fNIRS file format - {other}')
 
-    def read_annotation(self, annotation_file_path):
+    def read_annotation(self, annotation_file_path, **kwargs):
         self.annotation_file_path = pathlib.Path(annotation_file_path).with_suffix('.mat')
 
         # `Stages of the experiment`
@@ -406,10 +406,10 @@ class NIRS:
         self.raw.set_annotations(mne.Annotations(
             onset=self.T_EXP_START + self.mat['motion_e'], # - self.T_REC_START
             duration=[self.DUR['motion']] * len(self.mat),
-            description=self.mat['num_targets'].astype(int)
+            description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `desciption` argument.
         ))
 
-    def read_montage(self, montage_file_path, transform=True, reference=constants.DEFAULT_REFERENCE_LOCATIONS):
+    def read_montage(self, montage_file_path, transform=True, reference=constants.DEFAULT_REFERENCE_LOCATIONS, **kwargs):
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')
         
         montage = mne.channels.read_custom_montage(self.montage_file_path, coord_frame=self.COORD_FRAME)
@@ -433,7 +433,7 @@ class NIRS:
         
         self.raw.set_montage(montage)
 
-    def read(self, subject_id, session, run):
+    def read(self, subject_id, session, run, **kwargs):
         base_dir = pathlib.Path(self.DATA_DIR, self.PROJECT, f'sub-{subject_id}', f'ses-{session}')
 
         raw_file_path = base_dir / (f'sub-{subject_id}_ses-{session}_run-{run}_fnirs')
@@ -441,10 +441,10 @@ class NIRS:
         montage_file_path = base_dir / (f'sub-{subject_id}_ses-{session}_optodes.elc')
         config_file_path = base_dir / (f'sub-{subject_id}_ses-{session}_config.toml')
 
-        self.read_config(config_file_path)
-        self.read_raw(raw_file_path)
-        self.read_annotation(annotation_file_path)
-        self.read_montage(montage_file_path)
+        self.read_config(config_file_path, **kwargs)
+        self.read_raw(raw_file_path, **kwargs)
+        self.read_annotation(annotation_file_path, **kwargs)
+        self.read_montage(montage_file_path, **kwargs)
 
         return self
 
