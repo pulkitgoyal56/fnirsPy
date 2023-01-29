@@ -536,6 +536,8 @@ class NIRS:
         return self.evoked_dict
 
     def default_pipeline(self, savepoints=dict(), ppf=constants.PPF):
+        if any(ch != 'fnirs_cw_amplitude' for ch in self.raw.info.get_channel_types()):
+            raise ValueError('The default pipeline works only with channels of type fnirs_cw_amplitude.')
         self.process(
             # Save raw (CW amplitude) signals
                 NIRS.save(savepoints)('CW'),
