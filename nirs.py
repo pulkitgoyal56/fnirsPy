@@ -47,6 +47,7 @@ import mbll
 
 class NIRS:
     def __init__(self, data_dir=constants.DATA_DIR, project=constants.PROJECT, device=constants.DEVICE) -> None:
+        """Initialize NIRS object."""
         self.DATA_DIR = data_dir
         self.PROJECT = project
         self.DEVICE = device
@@ -58,12 +59,13 @@ class NIRS:
 
         self.BAD_CHANNELS = set()
 
-    def __attr(self, attr, var):
-        if var is not None:
-            self.__setattr__(attr, var)
-        return self.__getattribute__(attr)
+    def __attr(self, attribute, value):
+        """Modify the object attribute if value is given, otherwise return the object attribute value"""
+        if value is not None:
+            self.__setattr__(attribute, value)
+        return self.__getattribute__(attribute)
 
-    def backlight_removal(self):
+    def remove_backlight(self):
         """Backlight removal."""
         raw_data = self.raw.get_data()
         time = self.raw.times
@@ -78,11 +80,11 @@ class NIRS:
         # Subtract predicted backlight signal from raw data of all wavelengths
         corrected_data = raw_data - np.repeat(fitted_backlight, int(len(raw_data)/len(fitted_backlight)), axis=0)
 
-        # DataFrame with backlight-removed signal intensities (the rows are chunked in groups of `N_CHANNELS` (number of used channels),
-        # i.e. first 9 rows = recoding 1; second 9 rows = recording 2; ...)
-        self.raw = mne.io.RawArray(corrected_data, self.raw.info)
-
-        return self.raw
+        # This function is called when reading data unlike other pre-processing functions.
+        # Because manual data editing is not possible once the annotations are attached to the mne.raw instance.
+        # So, to use this function like other pre-processing function would require redoing the annotations.
+        # Or, a elegant solution would be to have annotations also as part of the pre-processing pipeline.
+        return mne.io.RawArray(corrected_data, self.raw.info)
 
     def pick_channels(self):
         # TODO: Automatic channel selection -- Heart-rate based.
@@ -96,6 +98,7 @@ class NIRS:
         pass
 
     def pick_wavelengths(self, wavelengths_picked=None):
+        """Pick wavelengths."""
         wavelengths_picked = self.__attr('WAVELENGTHS_PICKED', wavelengths_picked)
 
         # Indices of all the channels available (beware, these are not the same as the initial channel numbers!)
@@ -106,7 +109,8 @@ class NIRS:
 
         self.raw.pick([ch for ch in self.raw.ch_names if int(ch.split()[1]) in wavelengths_picked])
 
-    def set_bad(self, bad_channels, overwrite=True):
+    def set_bad(self, bad_channels, *, overwrite=True):
+        """Set bad channels."""
         if isinstance(bad_channels[0], int):
             bad_channels = [self.CH_NAMES[ch] for ch in bad_channels]
 
@@ -142,13 +146,14 @@ class NIRS:
         
         return len(set(map(lambda ch: ch.split(' ')[0], self.raw.ch_names))) # int(len(self.raw.ch_names)/2)
 
-    def read_raw_fif(self, raw_file_path, config_file_path=None, pick_wavelengths=True, remove_backlight=True, **kwargs):
+    def read_raw_fif(self, raw_file_path, config_file_path=None, *, remove_backlight=True, pick_wavelengths=True, **kwargs):
+        """Read .fif file and its accompanying backlight file."""
         self.raw_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0]).with_suffix('.raw.fif')
 
         if config_file_path:
             self.read_config(config_file_path)
 
-        # Read '.raw.fif' file and create mne.io.Raw object
+        # Read '.raw.fif' file and create mne.raw object
         raw_fif = mne.io.read_raw_fif(self.raw_file_path, preload=True)
         # raw_fif.crop(tmin=120) # Delete first 60s for this dataset (idle data)
 
@@ -209,7 +214,7 @@ class NIRS:
         raw_fif.info['sfreq'] = self.F_S
         raw_fif.info._unlocked = False
 
-        # Re-create mne.io.Raw object
+        # Re-create mne.raw object
         self.raw = raw_fif
 
         # Read '-backlight.raw.fif' file
@@ -217,20 +222,24 @@ class NIRS:
         if remove_backlight:
             backlight_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0] + '-backlight').with_suffix('.raw.fif')
             self.raw_backlight = mne.io.read_raw_fif(backlight_file_path, preload=True).get_data()
-            self.raw = self.backlight_removal()
+            self.raw = self.remove_backlight()
 
+        # Picking wavelengths is required as MNE does not support more than two wavelengths and will raise an error when setting the montage
         if pick_wavelengths:
             self.pick_wavelengths()
 
         return self.raw
 
-    def read_raw_csv(self, raw_file_path, config_file_path, pick_wavelengths=True, remove_backlight=True, ch_type='fnirs_cw_amplitude', **kwargs):
+    def read_raw_csv(self, raw_file_path, config_file_path=None, *, remove_backlight=True, pick_wavelengths=True, **kwargs):
+        """Read .csv file with its accompanying backlight data."""
         self.raw_file_path = pathlib.Path(raw_file_path).with_suffix('.csv')
 
         if config_file_path:
             self.read_config(config_file_path)
 
         # Read CSV data as Pandas DataFrame
+        # The rows are chunked in groups of `N_CHANNELS` (number of used channels),
+        # i.e. first 9 rows = recording 1; second 9 rows = recording 2; ...)
         data_pd = pd.read_csv(self.raw_file_path)
 
         # Wavelengths available (automatic extraction)
@@ -284,17 +293,13 @@ class NIRS:
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
         self.F_S = (len(data_pd) - len(self.S_D))/len(self.S_D)/self.T_REC_END         # fNIRS recording frequency, in Hertz
 
-        # Create mne.Info object
-        # https://mne.tools/stable/glossary.html#term-data-channels
-        CH_TYPES = ch_type # [] * N_CHANNELS * N_WAVELENGTHS_T * N_HEMISPHERES
-
         # Create mne.Info Object
-        info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=CH_TYPES)
+        info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=self.config['CH_TYPES'])
 
         # `Manually update info object parameters for location`
         # > Manual modification is not recommended, but there doesn't seem to any other option as there are no inbuilt functions for this.
         # > https://github.com/mne-tools/mne-python/blob/main/mne/io/meas_config.py#L2425
-        # >> __Info__: `mne.Raw.info['chs'][x]['loc']` is an array of channel 'location' of length 12.
+        # >> __Info__: `mne.raw.info['chs'][x]['loc']` is an array of channel 'location' of length 12.
         # >> From investigation, it is apparent that,
         # >>> - [0:3] is the midpoint (channel) location (= <source_location + detector_location>/2)
         # >>> - [3:6] is the source location
@@ -324,20 +329,22 @@ class NIRS:
         # 'CH_USED x N_WAVELENGTHS_T' rows; each corresponding in order to `CH_NAMES`
         data_np = np.array(data_pd[data_pd.columns[-self.N_WAVELENGTHS_T:]]).reshape(-1, self.N_CHANNELS * self.N_WAVELENGTHS_T).T
 
-        # Create mne.io.Raw object
+        # Create mne.raw object
         self.raw = mne.io.RawArray(data_np, info_csv)
         
         # Backlight intensities (for used channels only)
         if remove_backlight:
             self.raw_backlight = data_pd['BL'].to_numpy().reshape(-1, self.N_CHANNELS).T
-            self.raw = self.backlight_removal()
+            self.raw = self.remove_backlight()
 
+        # Picking wavelengths is required as MNE does not support more than two wavelengths and will raise an error when setting the montage
         if pick_wavelengths:
             self.pick_wavelengths()
 
         return self.raw
 
-    def read_raw(self, raw_file_path, config_file_path=None, pick_wavelengths=True, remove_backlight=True, **kwargs):
+    def read_raw(self, raw_file_path, config_file_path=None, **kwargs):
+        """Read raw data."""
         raw_file_path = pathlib.Path(raw_file_path)
 
         if raw_file_path.suffix == '':
@@ -348,14 +355,15 @@ class NIRS:
                 raise FileNotFoundError(f'No file of the sort `{raw_file_path}.*`')
 
         match raw_file_path.suffix:
-            case '.csv':
-                return self.read_raw_csv(raw_file_path, config_file_path, pick_wavelengths, remove_backlight, **kwargs)
             case '.fif':
-                return self.read_raw_fif(raw_file_path, config_file_path, pick_wavelengths, remove_backlight, **kwargs)
+                return self.read_raw_fif(raw_file_path, config_file_path, **kwargs)
+            case '.csv':
+                return self.read_raw_csv(raw_file_path, config_file_path, **kwargs)
             case other:
                 raise ValueError(f'Unsupported fNIRS file format - {other}')
 
     def read_annotation(self, annotation_file_path, **kwargs):
+        """Read annotation data."""
         self.annotation_file_path = pathlib.Path(annotation_file_path).with_suffix('.mat')
 
         # `Stages of the experiment`
@@ -421,7 +429,8 @@ class NIRS:
             description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `desciption` argument.
         ))
 
-    def read_montage(self, montage_file_path, augment=True, transform=True, reference=constants.DEFAULT_REFERENCE_LOCATIONS, **kwargs):
+    def read_montage(self, montage_file_path, *, augment=True, transform=True, reference=constants.DEFAULT_REFERENCE_LOCATIONS, **kwargs):
+        """Read location data."""
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')
         
         montage = mne.channels.read_custom_montage(self.montage_file_path, coord_frame=self.COORD_FRAME)
@@ -451,6 +460,7 @@ class NIRS:
         self.raw.set_montage(montage)
 
     def read(self, subject_id, session, run, **kwargs):
+        """Read subject/session/run data; set annotations and set montage."""
         base_dir = pathlib.Path(self.DATA_DIR, self.PROJECT, f'sub-{subject_id}', f'ses-{session}')
 
         raw_file_path = base_dir / (f'sub-{subject_id}_ses-{session}_run-{run}_fnirs')
@@ -466,6 +476,7 @@ class NIRS:
         return self
 
     def process(self, *funcs):
+        """Process NIRS object with function that takes the object as input and returns mne.raw instance if it's modified, else whatever."""
         if len(funcs) > 1:
             for func in funcs:
                 self.process(func)
@@ -479,18 +490,19 @@ class NIRS:
         def wrapper(label):
             def subwrapper(self):
                 if isinstance(savepoints, dict):
-                    savepoints[label] = self.raw
+                    savepoints[label] = self.raw # .copy()
             return subwrapper
         return wrapper
 
     @staticmethod
     def wrap(func, *args, **kwargs):
+        """Wraps functions that take raw to take NIRS object."""
         def wrapper(self):
             return func(self.raw, *args, **kwargs)
         return wrapper
 
     def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=False, **kwargs):
-        """Extract Epochs."""
+        """Extract epochs."""
 
         tmin = self.__attr('T_EPOCH_START', tmin)
         tmax = self.__attr('T_EPOCH_END', tmax)
@@ -521,7 +533,7 @@ class NIRS:
         return self.events, self.event_dict, self.epochs
 
     def block_average(self, rename=True):
-        # Block averaging across trials
+        """Block averaging across trials."""
         # Dictionary with '<num_targets>/<hbo|hbr>' as keys and mne.Evoked object as value
         self.evoked_dict = {f'{event}/{ch_type}': self.epochs[event].average(picks=ch_type)
             for event in self.event_dict.keys()
@@ -536,6 +548,15 @@ class NIRS:
         return self.evoked_dict
 
     def default_pipeline(self, savepoints=dict(), ppf=constants.PPF):
+        """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
+        Stages: CW     (raw signal)
+                OD     (optical density)
+                TDD    (motion artifact removal)
+                SSR    (short-channel regression)
+                HB     (chromophore/haemoglobin)
+                FL     (bandpass filtering)
+                NCE    (negative correlation improvement)
+        """
         if any(ch != 'fnirs_cw_amplitude' for ch in self.raw.info.get_channel_types()):
             raise ValueError('The default pipeline works only with channels of type fnirs_cw_amplitude.')
         self.process(
@@ -591,6 +612,7 @@ class NIRS:
         brain.show_view(azimuth=90, elevation=90, distance=500)
     
     def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None, **kwargs):
+        """Plot heatmap of block averaged signals for all channels, for all cases."""
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(2, self.n_cases, figsize=(18, 6))
 
@@ -606,6 +628,7 @@ class NIRS:
         return fig
 
     def plot_average_waveform(self, ch_type='hbo', fig=None, axs=None, **kwargs):
+        """Plot block averaged signals for the given channel type across for all channels and cases."""
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(self.n_channels, self.n_cases, figsize=(20, 10), sharey=True, sharex=True)
 
