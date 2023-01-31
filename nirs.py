@@ -65,28 +65,7 @@ class NIRS:
             self.__setattr__(attribute, value)
         return self.__getattribute__(attribute)
 
-    def remove_backlight(self):
-        """Backlight removal."""
-        raw_data = self.raw.get_data()
-        time = self.raw.times
-
-        regressors = sm.tools.tools.add_constant(np.c_[time, time**2, time**3]) # Timestamp (^1, ^2, ^3)
-
-        fitted_backlight = np.apply_along_axis(
-            lambda raw_backlight_ch: sm.RLM(raw_backlight_ch, regressors).fit().fittedvalues,
-            1, self.raw_backlight
-        )
-
-        # Subtract predicted backlight signal from raw data of all wavelengths
-        corrected_data = raw_data - np.repeat(fitted_backlight, int(len(raw_data)/len(fitted_backlight)), axis=0)
-
-        # This function is called when reading data unlike other pre-processing functions.
-        # Because manual data editing is not possible once the annotations are attached to the mne.raw instance.
-        # So, to use this function like other pre-processing function would require redoing the annotations.
-        # Or, a elegant solution would be to have annotations also as part of the pre-processing pipeline.
-        return mne.io.RawArray(corrected_data, self.raw.info)
-
-    def pick_channels(self):
+    def auto_pick_channels(self):
         # TODO: Automatic channel selection -- Heart-rate based.
         # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
         # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
@@ -143,10 +122,10 @@ class NIRS:
         # # Do not count channels marked as bad, if all frequencies/chromophores are marked as bad.
         # # If any of the chromophore is not marked as bad, count it still!
         # return len(set([ch.split(' ')[0] for ch in nirs.raw.ch_names if ch not in nirs.raw.info['bads']]))
-        
+
         return len(set(map(lambda ch: ch.split(' ')[0], self.raw.ch_names))) # int(len(self.raw.ch_names)/2)
 
-    def read_raw_fif(self, raw_file_path, config_file_path=None, *, remove_backlight=True, pick_wavelengths=True, **kwargs):
+    def read_raw_fif(self, raw_file_path, config_file_path=None, *, backlight=True, **kwargs):
         """Read .fif file and its accompanying backlight file."""
         self.raw_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0]).with_suffix('.raw.fif')
 
@@ -219,18 +198,13 @@ class NIRS:
 
         # Read '-backlight.raw.fif' file
         # Backlight intensities (for used channels only)
-        if remove_backlight:
+        if backlight:
             backlight_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0] + '-backlight').with_suffix('.raw.fif')
             self.raw_backlight = mne.io.read_raw_fif(backlight_file_path, preload=True).get_data()
-            self.raw = self.remove_backlight()
-
-        # Picking wavelengths is required as MNE does not support more than two wavelengths and will raise an error when setting the montage
-        if pick_wavelengths:
-            self.pick_wavelengths()
 
         return self.raw
 
-    def read_raw_csv(self, raw_file_path, config_file_path=None, *, remove_backlight=True, pick_wavelengths=True, **kwargs):
+    def read_raw_csv(self, raw_file_path, config_file_path=None, *, backlight=True, **kwargs):
         """Read .csv file with its accompanying backlight data."""
         self.raw_file_path = pathlib.Path(raw_file_path).with_suffix('.csv')
 
@@ -331,15 +305,10 @@ class NIRS:
 
         # Create mne.raw object
         self.raw = mne.io.RawArray(data_np, info_csv)
-        
-        # Backlight intensities (for used channels only)
-        if remove_backlight:
-            self.raw_backlight = data_pd['BL'].to_numpy().reshape(-1, self.N_CHANNELS).T
-            self.raw = self.remove_backlight()
 
-        # Picking wavelengths is required as MNE does not support more than two wavelengths and will raise an error when setting the montage
-        if pick_wavelengths:
-            self.pick_wavelengths()
+        # Backlight intensities (for used channels only)
+        if backlight:
+            self.raw_backlight = data_pd['BL'].to_numpy().reshape(-1, self.N_CHANNELS).T
 
         return self.raw
 
@@ -369,7 +338,7 @@ class NIRS:
         # `Stages of the experiment`
         # > *\<exp\>* → **\[ *\<tri\>* = *\<wait1\>* → *\<target\>* → *\<motion\>* → *\<probe\>* → *\<feedb\>* → *\<feedbEnd\>* → {data_write()} \]** → *\<expEnd\>*
         # > *`T_REC_START`* ------ *`T_EXP_START`* == *0* ------------------------------------------------------------ *`T_EXP_END`* ------ *`T_REC_END`*
-        
+
         # Load Experiment Results
         self.mat = pd.DataFrame(sc.io.loadmat(self.annotation_file_path)['blockdata'], columns=[
             'experiment_number',     # 0     # <trl.exp_number>              # experiment number
@@ -432,7 +401,7 @@ class NIRS:
     def read_montage(self, montage_file_path, *, augment=True, transform=True, reference=constants.DEFAULT_REFERENCE_LOCATIONS, **kwargs):
         """Read location data."""
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')
-        
+
         montage = mne.channels.read_custom_montage(self.montage_file_path, coord_frame=self.COORD_FRAME)
         # TIP - The montage stores location after dividing by a constant factor of order 3
 
@@ -455,11 +424,11 @@ class NIRS:
                     raise ValueError(f'{reference} method is not supported yet.')
                 case _:
                     raise ValueError(f'Unsupported reference.')
-        
+
         # montage.plot()
         self.raw.set_montage(montage)
 
-    def read(self, subject_id, session, run, **kwargs):
+    def read(self, subject_id, session, run, pick_wavelengths=True, **kwargs):
         """Read subject/session/run data; set annotations and set montage."""
         base_dir = pathlib.Path(self.DATA_DIR, self.PROJECT, f'sub-{subject_id}', f'ses-{session}')
 
@@ -470,7 +439,12 @@ class NIRS:
 
         self.read_config(config_file_path, **kwargs)
         self.read_raw(raw_file_path, **kwargs)
+
         self.read_annotation(annotation_file_path, **kwargs)
+
+        # Picking wavelengths is required because MNE does not support more than two wavelengths.
+        # An error will be raised when setting the montage if more than two wavelengths are used.
+        if pick_wavelengths: self.pick_wavelengths()
         self.read_montage(montage_file_path, **kwargs)
 
         return self
@@ -490,15 +464,17 @@ class NIRS:
         def wrapper(label):
             def subwrapper(self):
                 if isinstance(savepoints, dict):
-                    savepoints[label] = self.raw # .copy()
+                    savepoints[label] = self.raw.copy()
             return subwrapper
         return wrapper
 
     @staticmethod
-    def wrap(func, *args, **kwargs):
+    def wrap(func):
         """Wraps functions that take raw to take NIRS object."""
-        def wrapper(self):
-            return func(self.raw, *args, **kwargs)
+        def wrapper(*args, **kwargs):
+            def subwrapper(self):
+                return func(self.raw, *args, **kwargs)
+            return subwrapper
         return wrapper
 
     def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=False, **kwargs):
@@ -547,9 +523,30 @@ class NIRS:
 
         return self.evoked_dict
 
-    def default_pipeline(self, savepoints=dict(), ppf=constants.PPF):
+    @staticmethod
+    @wrap
+    def remove_backlight(raw, raw_backlight):
+        """Backlight removal based on interpolation/smoothing."""
+        raw = raw.copy()
+
+        # Create design matrix of times (3rd order)
+        regressors = sm.tools.tools.add_constant(np.c_[(times := raw.times), times**2, times**3]) # Timestamp (^1, ^2, ^3)
+
+        # Fit RLM for every channel (row)
+        fitted_backlight = np.apply_along_axis(
+            lambda raw_backlight_ch: sm.RLM(raw_backlight_ch, regressors).fit().fittedvalues,
+            1, raw_backlight
+        )
+
+        # Subtract predicted backlight signal from raw data of all wavelengths to remove backlight
+        raw._data = raw.get_data() - np.repeat(fitted_backlight, int(len(raw.ch_names)/len(fitted_backlight)), axis=0)
+
+        return raw
+
+    def default_pipeline(self, savepoints=dict(), remove_backlight=True, ppf=constants.PPF):
         """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
         Stages: CW     (raw signal)
+                CWx    (backlight removed raw signal)
                 OD     (optical density)
                 TDD    (motion artifact removal)
                 SSR    (short-channel regression)
@@ -562,27 +559,30 @@ class NIRS:
         self.process(
             # Save raw (CW amplitude) signals
                 NIRS.save(savepoints)('CW'),
+            # Remove Backlight
+                lambda this: NIRS.remove_backlight(self.raw_backlight)(this) if remove_backlight else None,
+                NIRS.save(savepoints)('CWx'),
             # Convert raw (CW amplitude) to optical density (OD) signals
-                NIRS.wrap(mne.preprocessing.nirs.optical_density),
+                NIRS.wrap(mne.preprocessing.nirs.optical_density)(),
                 NIRS.save(savepoints)('OD'),
             # Motion artifact removal -- Temporal Derivative Distribution Repair (TDDR)
-                NIRS.wrap(mne.preprocessing.nirs.tddr),
+                NIRS.wrap(mne.preprocessing.nirs.tddr)(),
                 NIRS.save(savepoints)('TDDR'),
             # Short-channel regression
-                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression, max_dist=constants.DEVICE.SS_MAX_DIST),
+                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.DEVICE.SS_MAX_DIST),
                 NIRS.save(savepoints)('SSR'),
             # Optical Densities -> HbO and HbR concentrations -- Modified Beer Lambert Law (MBLL)
                 # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law, ppf=0.1),
-                NIRS.wrap(mbll.modified_beer_lambert_law, ppf=ppf),
+                NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=ppf),
                 NIRS.save(savepoints)('HB'),
             # Pick long channels
-                NIRS.wrap(mne_nirs.channels.get_long_channels, min_dist=constants.DEVICE.SS_MAX_DIST, max_dist=constants.DEVICE.LS_MAX_DIST),
+                NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.DEVICE.SS_MAX_DIST, max_dist=constants.DEVICE.LS_MAX_DIST),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
-                NIRS.wrap(mne.filter.FilterMixin.filter, l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH),
+                NIRS.wrap(mne.filter.FilterMixin.filter)(l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH),
                 NIRS.save(savepoints)('FL'),
             # Negative correlation enhancement
-                NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation),
+                NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation)(),
                 NIRS.save(savepoints)('NCE'),
             # Get epochs
                 NIRS.get_epochs,
