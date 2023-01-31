@@ -557,7 +557,7 @@ class NIRS:
             # Pick long channels
                 NIRS.wrap(mne_nirs.channels.get_long_channels, min_dist=constants.DEVICE.SS_MAX_DIST, max_dist=constants.DEVICE.LS_MAX_DIST),
                 NIRS.save(savepoints)('LS'),
-            # Filter frequencies outside haemodynamic response range
+            # Filter frequencies outside hemodynamic response range
                 NIRS.wrap(mne.filter.FilterMixin.filter, l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH),
                 NIRS.save(savepoints)('FL'),
             # Negative correlation enhancement
@@ -570,9 +570,10 @@ class NIRS:
         )
         return savepoints
 
-    def plot(self, **kwargs):
+    def plot(self, duration=None, **kwargs):
         """Plot raw signals."""
-        self.raw.plot(show_scrollbars=False, duration=self.DUR['exp']/3, **kwargs)
+        if duration is None: duration = self.DUR['exp']/3
+        self.raw.plot(show_scrollbars=False, duration=duration, **kwargs)
 
     def plot_psd(self, title='', **kwargs):
         """View power spectral densities of the signals."""
