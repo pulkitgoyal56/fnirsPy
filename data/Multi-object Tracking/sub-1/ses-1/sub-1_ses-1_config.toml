@@ -7,6 +7,11 @@ N_PROBES = 3
 # Number of hemispheres from which data is collected
 N_HEMISPHERES = 1
 
+# Type of Channels
+# str or list of size N_CHANNELS * N_WAVELENGTHS_T * N_HEMISPHERES
+# https://mne.tools/stable/glossary.html#term-data-channels
+CH_TYPES = 'fnirs_cw_amplitude' # 'hbo', 'hbr', 'fnirs_cw_amplitude', 'fnirs_fd_ac_amplitude', 'fnirs_fd_phase', 'fnirs_od'
+
 # Source-Detector pairs (all), in Hexadecimal
 # ['S2C_D2C', 'S27_D27', 'S2B_D2B', 'S2C_D2C', 'S2C_D27', 'S2C_D2B', 'S27_D2C', 'S27_D27', 'S27_D2B', 'S2B_D2C', 'S2B_D27', 'S2B_D2B'] # Hexadecimal
 # ['S44_D44', 'S39_D39', 'S43_D43', 'S44_D44', 'S44_D39', 'S44_D43', 'S39_D44', 'S39_D39', 'S39_D43', 'S43_D44', 'S43_D39', 'S43_D43'] # Decimal
