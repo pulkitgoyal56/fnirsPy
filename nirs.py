@@ -633,9 +633,10 @@ class NIRS:
             fig, axs = plt.subplots(self.n_channels, self.n_cases, figsize=(20, 10), sharey=True, sharex=True)
 
         for ax, event in zip(axs.T, self.cases):
-            for ax_i, ch in zip(ax, range(self.n_channels)):
-                self.evoked_dict[f'{event}/{ch_type}'].plot(picks=ch, show=False, axes=ax_i, **kwargs)
-                ax_i.set_title(f'{event} Targets | {utils.dec_to_hex([self.evoked_dict[f"{event}/{ch_type}"].ch_names[ch]])}')
+            evoked = self.epochs[event].average(picks=ch_type)
+            for ax_i, ch in zip(ax, evoked.ch_names):
+                evoked.plot(picks=ch, show=False, axes=ax_i, **kwargs)
+                ax_i.set_title(f'{event} Targets | {utils.dec_to_hex([ch])[0]}')
 
         return fig
 
