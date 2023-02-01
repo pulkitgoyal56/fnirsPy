@@ -32,6 +32,9 @@ import statsmodels.api as sm
 import mne
 import mne_nirs # esp. for fNIRS
 
+# Neuroimaging Statistical Tools
+import nilearn
+
 # Read Data Specific Configuration/Metadata Files
 import tomli
 
