@@ -547,7 +547,17 @@ class NIRS:
     def save_short_channels(self, max_dist=constants.DEVICE.SS_MAX_DIST):
         self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
-    def default_pipeline(self, savepoints=dict(), remove_backlight=True, ppf=constants.PPF):
+    def default_pipeline(
+            self,
+            savepoints=dict(),
+            remove_backlight=True,
+            tddr=True,
+            short_channel_regression=True,
+            pick_long_channels=True,
+            bandpass=True,
+            negative_correlation_enhancement=True,
+            ppf=constants.PPF
+        ):
         """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
         Stages: CW     (raw signal)
                 CWx    (backlight removed raw signal)
@@ -570,10 +580,10 @@ class NIRS:
                 NIRS.wrap(mne.preprocessing.nirs.optical_density)(),
                 NIRS.save(savepoints)('OD'),
             # Motion artifact removal -- Temporal Derivative Distribution Repair (TDDR)
-                NIRS.wrap(mne.preprocessing.nirs.tddr)(),
+                NIRS.wrap(mne.preprocessing.nirs.tddr)(execute=tddr),
                 NIRS.save(savepoints)('TDDR'),
             # Short-channel regression
-                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.DEVICE.SS_MAX_DIST),
+                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.DEVICE.SS_MAX_DIST, execute=short_channel_regression),
                 NIRS.save(savepoints)('SSR'),
             # Optical Densities -> HbO and HbR concentrations -- Modified Beer Lambert Law (MBLL)
                 # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law, ppf=0.1),
@@ -582,13 +592,13 @@ class NIRS:
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
                 NIRS.save_short_channels,
-                NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.DEVICE.SS_MAX_DIST, max_dist=constants.DEVICE.LS_MAX_DIST),
+                NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.DEVICE.SS_MAX_DIST, max_dist=constants.DEVICE.LS_MAX_DIST, execute=pick_long_channels),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
-                NIRS.wrap(mne.filter.FilterMixin.filter)(l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH),
+                NIRS.wrap(mne.filter.FilterMixin.filter)(l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH, execute=bandpass),
                 NIRS.save(savepoints)('FL'),
             # Negative correlation enhancement
-                NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation)(),
+                NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation)(execute=negative_correlation_enhancement),
                 NIRS.save(savepoints)('NCE'),
             # Get epochs
                 NIRS.get_epochs,
