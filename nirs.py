@@ -544,8 +544,8 @@ class NIRS:
 
         return raw
 
-    def get_short_channels(self, max_dist=constants.DEVICE.SS_MAX_DIST):
-        self.short_channels = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
+    def save_short_channels(self, max_dist=constants.DEVICE.SS_MAX_DIST):
+        self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
     def default_pipeline(self, savepoints=dict(), remove_backlight=True, ppf=constants.PPF):
         """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
@@ -581,7 +581,7 @@ class NIRS:
                 NIRS.save(savepoints)('HB'),
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
-                NIRS.get_short_channels,
+                NIRS.save_short_channels,
                 NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.DEVICE.SS_MAX_DIST, max_dist=constants.DEVICE.LS_MAX_DIST),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
