@@ -471,9 +471,10 @@ class NIRS:
     @staticmethod
     def wrap(func):
         """Wraps functions that take raw to take NIRS object."""
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, execute=True, **kwargs):
             def subwrapper(self):
-                return func(self.raw, *args, **kwargs)
+                if execute:
+                    return func(self.raw, *args, **kwargs)
             return subwrapper
         return wrapper
 
@@ -563,7 +564,7 @@ class NIRS:
             # Save raw (CW amplitude) signals
                 NIRS.save(savepoints)('CW'),
             # Remove Backlight
-                lambda this: NIRS.remove_backlight(self.raw_backlight)(this) if remove_backlight else None,
+                NIRS.remove_backlight(self.raw_backlight, execute=remove_backlight),
                 NIRS.save(savepoints)('CWx'),
             # Convert raw (CW amplitude) to optical density (OD) signals
                 NIRS.wrap(mne.preprocessing.nirs.optical_density)(),
