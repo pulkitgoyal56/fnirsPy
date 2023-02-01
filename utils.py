@@ -123,7 +123,7 @@ def select_best_wavelengths(wavelengths, *args):
 
 def has_location(source, pos):
     match source:
-        case pathlib.PosixPath() | str(): # source is a filename
+        case pathlib.PurePath() | str(): # source is a filename
             with open(source) as file:
                 for words in file:
                     if pos == re.split('\t| +|\n', words)[0]:
@@ -137,7 +137,7 @@ def has_location(source, pos):
 
 def get_location(source, pos):
     match source:
-        case pathlib.PosixPath() | str(): # source is a filename
+        case pathlib.PurePath() | str(): # source is a filename
             def _get_line_number(word, file):
                 file.seek(0)
                 for i, words in enumerate(file, 1):
