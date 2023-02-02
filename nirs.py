@@ -553,12 +553,12 @@ class NIRS:
     def default_pipeline(
             self,
             savepoints=dict(),
-            remove_backlight=True,
+            remove_backlight=False,
             tddr=True,
-            short_channel_regression=True,
+            short_channel_regression=False,
             pick_long_channels=True,
             bandpass=True,
-            negative_correlation_enhancement=True,
+            negative_correlation_enhancement=False,
             ppf=constants.PPF
         ):
         """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
