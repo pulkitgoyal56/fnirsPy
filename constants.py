@@ -39,15 +39,16 @@ HB_CHANNEL_TYPES = ['hbo', 'hbr']
 
 # The partial pathlength factors for different frequencies
 # See - https://github.com/mne-tools/mne-python/pull/9843
+PVC = 60 # 1 # Partial Volume Correction
 PPF = {
-    770: 6.18052629,
-    774: 6.18052629,
-    810: 5.930508,
-    817: 5.930508,
-    855: 5.50968514,
-    865: 5.50968514,
-    885: 5.17117029,
-    892: 5.17117029
+    770: 6.18052629 / PVC,
+    774: 6.18052629 / PVC,
+    810: 5.930508 / PVC,
+    817: 5.930508 / PVC,
+    855: 5.50968514 / PVC,
+    865: 5.50968514 / PVC,
+    885: 5.17117029 / PVC,
+    892: 5.17117029 / PVC
 }
 
 # Expected locations of reference points (at least 4 points are required to recreate mapping)
