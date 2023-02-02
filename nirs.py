@@ -19,9 +19,6 @@ import numpy as np
 # Table
 import pandas as pd
 
-# Plotting
-import matplotlib.pyplot as plt
-
 # Advanced Computations
 import scipy as sc
 
@@ -34,6 +31,9 @@ import mne_nirs # esp. for fNIRS
 
 # Neuroimaging Statistical Tools
 import nilearn
+
+# Plotting
+import matplotlib.pyplot as plt
 
 # Read Data Specific Configuration/Metadata Files
 import tomli
@@ -169,18 +169,18 @@ class NIRS:
         # Number of channels
         self.N_CHANNELS = len(self.CH_USED) # per wavelength # == `int(len(raw_fif.ch_names) / N_WAVELENGTHS_T)`
 
-        # Drop unused channels
-        raw_fif.drop_channels([raw_fif.ch_names[ch] for ch in self.CH_UNUSED])
-
-        # Names of the wavelength specific channels (only used channels)
-        self.CH_NAMES = raw_fif.ch_names
-
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
         self.F_S = raw_fif.info['sfreq'] * self.TIME_DRIFT_FACTOR            # fNIRS recording frequency, in Hertz
 
         # Set recording start and end times
         self.T_REC_START = 0                                                 # fNIRS recording start time, in seconds
         self.T_REC_END = (len(raw_fif) - 1)/self.F_S                         # fNIRS recording end time, in seconds
+
+        # Drop unused channels
+        raw_fif.drop_channels([raw_fif.ch_names[ch] for ch in self.CH_UNUSED])
+
+        # Names of the wavelength specific channels (only used channels)
+        self.CH_NAMES = raw_fif.ch_names
 
         # Update sampling frequency
         # Note - To update certain attributes of the mne.Info object, the state has to manually 'unlocked'
@@ -249,6 +249,13 @@ class NIRS:
         # Number of channels
         self.N_CHANNELS = len(self.CH_USED) # per wavelength
 
+        # Set recording start and end times
+        self.T_REC_START = -data_pd['Time[ms]'].iloc[0]/1000/self.TIME_DRIFT_FACTOR    # fNIRS recording start time, in seconds
+        self.T_REC_END = np.ptp(data_pd['Time[ms]'])/1000/self.TIME_DRIFT_FACTOR       # fNIRS recording end time, in seconds
+
+        # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
+        self.F_S = (len(data_pd) - len(self.S_D))/len(self.S_D)/self.T_REC_END         # fNIRS recording frequency, in Hertz
+
         # Remove unused channels and create a new DataFrame
         data_pd = data_pd.loc[data_pd['Channel'].isin(self.CH_USED)]
 
@@ -262,13 +269,6 @@ class NIRS:
         self.CH_NAMES = [f'{self.CH_MAP[ch]} {wavelength}'
                     for ch in list(self.CH_MAP.keys()) if ch not in self.CH_UNUSED
                     for wavelength in self.WAVELENGTHS]
-
-        # Set recording start and end times
-        self.T_REC_START = -data_pd['Time[ms]'].iloc[0]/1000/self.TIME_DRIFT_FACTOR    # fNIRS recording start time, in seconds
-        self.T_REC_END = np.ptp(data_pd['Time[ms]'])/1000/self.TIME_DRIFT_FACTOR       # fNIRS recording end time, in seconds
-
-        # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
-        self.F_S = (len(data_pd) - len(self.S_D))/len(self.S_D)/self.T_REC_END         # fNIRS recording frequency, in Hertz
 
         # Create mne.Info Object
         info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=self.config['CH_TYPES'])
