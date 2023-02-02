@@ -528,7 +528,7 @@ class NIRS:
         return self.evoked_dict
 
     @staticmethod
-    @wrap
+    # @wrap
     def remove_backlight(raw, raw_backlight):
         """Backlight removal based on interpolation/smoothing."""
         raw = raw.copy()
@@ -577,7 +577,7 @@ class NIRS:
             # Save raw (CW amplitude) signals
                 NIRS.save(savepoints)('CW'),
             # Remove Backlight
-                NIRS.remove_backlight(self.raw_backlight, execute=remove_backlight),
+                NIRS.wrap(NIRS.remove_backlight)(self.raw_backlight, execute=remove_backlight),
                 NIRS.save(savepoints)('CWx'),
             # Convert raw (CW amplitude) to optical density (OD) signals
                 NIRS.wrap(mne.preprocessing.nirs.optical_density)(),
