@@ -5,6 +5,8 @@ DATA_DIR = 'data'
 PROJECT = 'Multi-object Tracking'
 
 class DEVICE(object):
+    WAVELENGTHS = [770, 810, 855, 885] # [774, 817, 865, 892]
+
     # Number of wavelengths from which data is collected
     N_WAVELENGTHS = 4
 
