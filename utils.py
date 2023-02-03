@@ -44,7 +44,7 @@ def dec_to_hex(channels):
     def convert(channel):
         s, d, r = re.compile(r'S(\d+)_D(\d+)(.*)').match(channel).groups()
         return f'S{int(s):X}_D{int(d):X}{r}'
-    
+
     return list(map(convert, channels))
 
 def hex_to_dec(channels):
@@ -63,8 +63,23 @@ def hex_to_dec(channels):
     def convert(channel):
         s, d, r = re.compile(r'S([0-9A-F]+)_D([0-9A-F]+)(.*)').match(channel).groups()
         return f'S{int(s, base=16)}_D{int(d, base=16)}{r}'
-    
+
     return list(map(convert, channels))
+
+def get_s_d(channels):
+    """Gets the unique source detector names without wavelength/chromophore labels.
+
+    Parameters
+    ----------
+    channels : array-like
+        List of channel names with wavelength/chromophore labels.
+
+    Returns
+    -------
+    array-like
+        Ordered list of unique channel names without wavelength/chromophore labels.
+    """
+    return list(dict.fromkeys(map(lambda ch: ch.split()[0], channels)))
 
 def is_short_channel(channel):
     """Check if channel is short based on its name.
