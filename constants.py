@@ -30,10 +30,13 @@ class DEVICE(object):
 # If the PTP signal amplitude of any one channel exceeds the rejection threshold, the respective epoch will be dropped.
 REJECT_CRITERIA = None # {'hbo': 80e-6}
 
-F_L = 0.02
-F_H = 0.4
-L_TRANS_BANDWIDTH = 0.01
-H_TRANS_BANDWIDTH = 0.2
+# See recommendations by Pinti et. al. 2014
+# https://www.frontiersin.org/articles/10.3389/fnhum.2018.00505/full
+F_L = 0.01
+F_H = 0.09
+# The transition band is chosen such that the order of the resulting filter is >1000.
+L_TRANS_BANDWIDTH = 0.006
+H_TRANS_BANDWIDTH = 0.006
 
 HB_CHANNEL_TYPES = ['hbo', 'hbr']
 
