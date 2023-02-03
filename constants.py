@@ -8,14 +8,14 @@ class DEVICE(object):
     # Number of wavelengths from which data is collected
     N_WAVELENGTHS = 4
 
-    # Maximum length of a short channel
-    SS_MAX_DIST = 0.01 # m
+    # Short separation
+    SS_SEPARATION = 0.007
 
-    # Maximum length of a long channel
-    LS_MAX_DIST = 0.10 # m
+    # Long separation
+    LS_SEPARATION = 0.03
 
     # Time drift factor
-    TIME_DRIFT_FACTOR = 1.0045 
+    TIME_DRIFT_FACTOR = 1.0045
 
     # Additional device info
     INFO = {
@@ -24,6 +24,11 @@ class DEVICE(object):
     }
     EXPERIMENTER = 'optoHIVE Team'
 
+# Maximum length of a short channel
+SS_MAX_DIST = 0.01 # m
+
+# Maximum length of a long channel
+LS_MAX_DIST = 0.10 # m
 
 # Maximum threshold for channel rejection
 # Reject epochs based on maximum peak-to-peak (PTP) signal amplitude, i.e. the absolute difference between the lowest and the highest signal value.

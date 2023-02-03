@@ -56,8 +56,8 @@ class NIRS:
         self.DEVICE = device
 
         self.N_WAVELENGTHS = self.DEVICE.N_WAVELENGTHS
-        # self.LS_MAX_DIST = self.DEVICE.LS_MAX_DIST
-        # self.SS_MAX_DIST = self.DEVICE.SS_MAX_DIST
+        # self.LS_MAX_DIST = self.LS_MAX_DIST
+        # self.SS_MAX_DIST = self.SS_MAX_DIST
         self.TIME_DRIFT_FACTOR = self.DEVICE.TIME_DRIFT_FACTOR
 
         self.BAD_CHANNELS = set()
@@ -73,8 +73,8 @@ class NIRS:
         # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
         # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
         # > Extraction of heart rate from functional near-infrared spectroscopy in infants.
-        # > Journal of Biomedical Optics 19, 067010. doi:10.1117/1.JBO.19.6.067010  
-        # > https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4073682/  
+        # > Journal of Biomedical Optics 19, 067010. doi:10.1117/1.JBO.19.6.067010
+        # > https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4073682/
         # 
         # TODO: Automatic channel selection -- RMS-threshold based.
         pass
@@ -96,7 +96,7 @@ class NIRS:
         if isinstance(bad_channels[0], int):
             bad_channels = [self.CH_NAMES[ch] for ch in bad_channels]
 
-        self.BAD_CHANNELS = set(bad_channels) if overwrite else self.BAD_CHANNELS.union(set(bad_channels)) 
+        self.BAD_CHANNELS = set(bad_channels) if overwrite else self.BAD_CHANNELS.union(set(bad_channels))
 
         self.raw.info['bads'] = list(self.BAD_CHANNELS)
 
@@ -188,7 +188,7 @@ class NIRS:
         #      - If there are any sync issues with info object, this might be the where to investigate but it likely won't happen
         #      - The attributes that can be updated without 'unlocking' are
         #      - > `info['bads']`, `info['description']`, `info['device_info'`] `info['dev_head_t']`, `info['experimenter']`,
-        #      - > `info['helium_info']`, `info['line_freq']`, `info['temp']`, and `info['subject_info']` 
+        #      - > `info['helium_info']`, `info['line_freq']`, `info['temp']`, and `info['subject_info']`
         #      - "All other entries should be considered read-only, though they can be modified by various MNE-Python functions or methods
         #      - (which have safeguards to ensure all fields remain in sync)."
         #      - See - https://mne.tools/stable/generated/mne.Info.html#mne.Info
@@ -283,17 +283,17 @@ class NIRS:
         # >>> - [6:9] is the detector location
         # >>> - [9] is the wavelength
         # >>> - [10] seems to be always `nan`; function unknown
-        # >>> - [11] is the separation of the channel, i.e. short (0.007) or long (0.03), in m
+        # >>> - [11] is the separation of the channel, in m
         for chs in info_csv['chs']:
             # For fNIRS, the 10th element corresponds to the wavelength
             # https://github.com/mne-tools/mne-python/blob/main/mne/preprocessing/nirs/nirs.py#L150
             chs['loc'][9] = float(chs['ch_name'].split()[1])
 
         for chs in info_csv['chs']:
-            # For fNIRS, the 12th element is the channel separation, i.e. short (0.007) or long (0.03)
+            # For fNIRS, the 12th element is the channel separation
             # > No specific reference to this 11th index found in the MNE-Python source code
             # >> Only references to range of values ('[:]' or '[3:]') in device-spcific functions with no apparent applicability to the context here
-            chs['loc'][11] = 0.007 if utils.is_short_channel(chs['ch_name']) else 0.03
+            chs['loc'][11] = constants.DEVICE.SS_SEPARATION if utils.is_short_channel(chs['ch_name']) else constants.DEVICE.LS_SEPARATION
 
         # Copy other meta data from sample *fif* file
         info_csv['device_info'] = self.DEVICE.INFO # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
@@ -417,7 +417,7 @@ class NIRS:
                 case 'default' | dict():
                     if reference == 'default':
                         reference = constants.DEFAULT_REFERENCE_LOCATIONS
-                    montage.apply_trans(mne.transforms.Transform(fro=self.COORD_FRAME, to=constants.DEFAULT_REFERENCE, 
+                    montage.apply_trans(mne.transforms.Transform(fro=self.COORD_FRAME, to=constants.DEFAULT_REFERENCE,
                         trans=utils.get_transformation(montage, reference,
                                 scale=utils.get_location(self.montage_file_path, next(iter(montage.get_positions()['ch_pos'])))[0]/
                                         next(iter(montage.get_positions()['ch_pos'].values()))[0])))
@@ -547,7 +547,7 @@ class NIRS:
 
         return raw
 
-    def save_short_channels(self, max_dist=constants.DEVICE.SS_MAX_DIST):
+    def save_short_channels(self, max_dist=constants.SS_MAX_DIST):
         self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
     def default_pipeline(
@@ -586,7 +586,7 @@ class NIRS:
                 NIRS.wrap(mne.preprocessing.nirs.tddr)(execute=tddr),
                 NIRS.save(savepoints)('TDDR'),
             # Short-channel regression
-                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.DEVICE.SS_MAX_DIST, execute=short_channel_regression),
+                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.SS_MAX_DIST, execute=short_channel_regression),
                 NIRS.save(savepoints)('SSR'),
             # Optical Densities -> HbO and HbR concentrations -- Modified Beer Lambert Law (MBLL)
                 # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law, ppf=0.1),
@@ -595,7 +595,7 @@ class NIRS:
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
                 NIRS.save_short_channels,
-                NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.DEVICE.SS_MAX_DIST, max_dist=constants.DEVICE.LS_MAX_DIST, execute=pick_long_channels),
+                NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.SS_MAX_DIST, max_dist=constants.LS_MAX_DIST, execute=pick_long_channels),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
                 NIRS.wrap(mne.filter.FilterMixin.filter)(l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH, execute=bandpass),
@@ -629,7 +629,7 @@ class NIRS:
         brain.add_head()
         brain.add_sensors(self.raw.info, trans='fsaverage')
         brain.show_view(azimuth=90, elevation=90, distance=500)
-    
+
     def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None, **kwargs):
         """Plot heatmap of block averaged signals for all channels, for all cases."""
         if (fig is None) or (axs is None):
