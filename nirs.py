@@ -604,8 +604,9 @@ class NIRS:
         if duration is None: duration = self.DUR['exp']/3
         self.raw.plot(show_scrollbars=False, duration=duration, **kwargs)
 
-    def plot_psd(self, title='', **kwargs):
+    def plot_psd(self, title='', n_fft=None, **kwargs):
         """View power spectral densities of the signals."""
+        if not n_fft: n_fft = int(len(self.raw)/10)
         fig = self.raw.compute_psd().plot(average=False, **kwargs)
         fig.suptitle(title)
         fig.subplots_adjust(top=0.88)
