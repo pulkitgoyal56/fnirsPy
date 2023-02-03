@@ -616,6 +616,15 @@ class NIRS:
         fig.axes[0].set_yticklabels(list(self.event_dict))
         fig.subplots_adjust(right=0.7)
 
+    def plot_boxcar(self, title='', fig=None, axs=None, **kwargs):
+        """Plot events in a boxcar plot."""
+        if (fig is None) or (axs is None):
+            fig, axs = plt.subplots(1, 1, figsize=(15, 6))
+        plt.plot(self.raw.times, mne_nirs.experimental_design.create_boxcar(self.raw), axes=axs)
+        plt.xlabel("Time (s)");
+        plt.title(title)
+        plt.legend(self.cases, loc="upper right")
+
     def plot_sensors_3d(self, **kwargs):
         """Show sensors on fsaverage brain."""
         subjects_dir = os.path.join(mne.datasets.sample.data_path(), 'subjects')
