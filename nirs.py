@@ -610,6 +610,12 @@ class NIRS:
         fig.suptitle(title)
         fig.subplots_adjust(top=0.88)
 
+    def plot_events(self, **kwargs):
+        """Plot events in a scatter plot."""
+        fig = mne.viz.plot_events(self.events, event_id=self.event_dict, sfreq=self.raw.info['sfreq'], show=False)
+        fig.axes[0].set_yticklabels(list(self.event_dict))
+        fig.subplots_adjust(right=0.7)
+
     def plot_sensors_3d(self, **kwargs):
         """Show sensors on fsaverage brain."""
         subjects_dir = os.path.join(mne.datasets.sample.data_path(), 'subjects')
