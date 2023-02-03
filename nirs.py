@@ -5,6 +5,10 @@
 NIRS class for fNIRS data processing, using MNE, for custom data.
 """
 
+# Logging and warnings
+import logging
+import warnings
+
 # File R/W
 import os
 
@@ -55,9 +59,6 @@ class NIRS:
         self.PROJECT = project
         self.DEVICE = device
 
-        self.N_WAVELENGTHS = self.DEVICE.N_WAVELENGTHS
-        # self.LS_MAX_DIST = self.LS_MAX_DIST
-        # self.SS_MAX_DIST = self.SS_MAX_DIST
         self.TIME_DRIFT_FACTOR = self.DEVICE.TIME_DRIFT_FACTOR
 
         self.BAD_CHANNELS = set()
@@ -75,13 +76,13 @@ class NIRS:
         # > Extraction of heart rate from functional near-infrared spectroscopy in infants.
         # > Journal of Biomedical Optics 19, 067010. doi:10.1117/1.JBO.19.6.067010
         # > https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4073682/
-        # 
-        # TODO: Automatic channel selection -- RMS-threshold based.
+        #        # TODO: Automatic channel selection -- RMS-threshold based.
         pass
 
     def pick_wavelengths(self, wavelengths_picked=None):
         """Pick wavelengths."""
         wavelengths_picked = self.__attr('WAVELENGTHS_PICKED', wavelengths_picked)
+        self.wavelengths = wavelengths_picked
 
         # Indices of all the channels available (beware, these are not the same as the initial channel numbers!)
         # picks = mne.pick_types(self.raw.info, meg=False, fnirs=True) # Select channels with picked wavelengths
@@ -89,7 +90,7 @@ class NIRS:
         # Pick long channels (for picked wavelength)
         # self.raw.pick([ch for ch in utils.find_long_channels(self.raw.ch_names)[0] if int(ch.split()[1]) in self.WAVELENGTHS_PICKED])
 
-        self.raw.pick([ch for ch in self.raw.ch_names if int(ch.split()[1]) in wavelengths_picked])
+        self.raw.pick([ch for ch in self.raw.ch_names if int(ch.split()[1]) in self.wavelengths])
 
     def set_bad(self, bad_channels, *, overwrite=True):
         """Set bad channels."""
@@ -105,28 +106,27 @@ class NIRS:
         self.config_file_path = pathlib.Path(config_file_path).with_suffix('.toml')
 
         with open(self.config_file_path, 'rb') as f:
-            self.config = tomli.load(f)
+            self.CONFIG = tomli.load(f)
 
-            self.WAVELENGTHS_PICKED = self.config['WAVELENGTHS_PICKED']
-            self.N_PROBES = int(self.config['N_PROBES'])
-            self.N_HEMISPHERES = int(self.config['N_HEMISPHERES'])
-            self.S_D = utils.hex_to_dec(self.config['S_D'])
-            self.CH_UNUSED = set(self.config['CH_UNUSED'])
-            self.T_EXP_START = float(self.config['T_EXP_START'])
-            self.T_EPOCH_START = float(self.config['T_EPOCH_START'])
-            self.T_EPOCH_END = float(self.config['T_EPOCH_END'])
-            self.T_BASELINE_START = float(self.config['T_BASELINE_START'])
-            self.T_BASELINE_END = float(self.config['T_BASELINE_END'])
-            self.COORD_FRAME = self.config['COORD_FRAME']
+            self.WAVELENGTHS_PICKED = self.CONFIG['WAVELENGTHS_PICKED']
+            self.N_PROBES = int(self.CONFIG['N_PROBES'])
+            self.N_HEMISPHERES = int(self.CONFIG['N_HEMISPHERES'])
+            self.S_D = utils.hex_to_dec(self.CONFIG['S_D'])
+            self.T_EXP_START = float(self.CONFIG['T_EXP_START'])
+            self.T_EPOCH_START = float(self.CONFIG['T_EPOCH_START'])
+            self.T_EPOCH_END = float(self.CONFIG['T_EPOCH_END'])
+            self.T_BASELINE_START = float(self.CONFIG['T_BASELINE_START'])
+            self.T_BASELINE_END = float(self.CONFIG['T_BASELINE_END'])
+            self.COORD_FRAME = self.CONFIG['COORD_FRAME']
 
     @property
-    def n_channels(self):
-        """Get number of source detector pairs (channels per wavelength/chromophore)."""
-        # # Do not count channels marked as bad, if all frequencies/chromophores are marked as bad.
-        # # If any of the chromophore is not marked as bad, count it still!
-        # return len(set([ch.split(' ')[0] for ch in nirs.raw.ch_names if ch not in nirs.raw.info['bads']]))
+    def s_d(self):
+        """Get source detector pairs ()."""
+        # # Do not count channels marked as bad, if all frequencies/chromophores for that channel are marked bad.
+        # # If any of the chromophore is not marked bad, count it still!
+        # return list(dict.fromkeys([ch.split(' ')[0] for ch in self.raw.ch_names if ch not in self.raw.info['bads']]))
 
-        return len(set(map(lambda ch: ch.split(' ')[0], self.raw.ch_names))) # int(len(self.raw.ch_names)/2)
+        return utils.get_s_d(self.raw.ch_names)
 
     def read_raw_fif(self, raw_file_path, config_file_path=None, *, backlight=True, **kwargs):
         """Read .fif file and its accompanying backlight file."""
@@ -140,34 +140,33 @@ class NIRS:
         # raw_fif.crop(tmin=120) # Delete first 60s for this dataset (idle data)
 
         # Wavelengths available
-        self.WAVELENGTHS = pd.unique([int(ch.split()[1]) for ch in raw_fif.ch_names])
-
-        # Total number of wavelengths
-        self.N_WAVELENGTHS_T = len(self.WAVELENGTHS)
-
-        # Number of wavelengths used in analysis
-        self.N_WAVELENGTHS = len(self.WAVELENGTHS_PICKED) # 2
+        self.wavelengths = self.WAVELENGTHS = pd.unique([int(ch.split()[1]) for ch in raw_fif.ch_names])
 
         # # Maximum number of channels
-        # self.M_CHANNELS = int(len(raw_fif.ch_names) / self.N_WAVELENGTHS_T)  # per wavelength # self.N_PROBES ** 2
+        # self.M_CHANNELS = int(len(raw_fif.ch_names) / len(wavelengths))  # per wavelength # self.N_PROBES ** 2
 
         # # Number of probes
         # self.M_PROBES = np.ceil(np.sqrt(self.M_CHANNELS) / self.N_HEMISPHERES)  # per hemisphere # self.N_PROBES
 
-        # Source-Detector pairs (all)
-        self.S_D = pd.unique([ch.split()[0] for ch in raw_fif.ch_names])
-
-        # Short Channels
-        self.CH_SHORT = set(utils.find_short_channels(self.S_D)[1]) - self.CH_UNUSED
-
-        # Long Channels
-        self.CH_LONG = set(utils.find_long_channels(self.S_D)[1]) - self.CH_UNUSED
+        # Source-Detector Pairs (all)
+        self.S_D = utils.get_s_d(raw_fif.ch_names)
 
         # Used Channels
-        self.CH_USED = self.CH_SHORT.union(self.CH_LONG)
+        self.S_D_USED = [s_d for i, s_d in enumerate(self.S_D) if i not in self.CONFIG['S_D_UNUSED']] # per wavelength
 
-        # Number of channels
-        self.N_CHANNELS = len(self.CH_USED) # per wavelength # == `int(len(raw_fif.ch_names) / N_WAVELENGTHS_T)`
+        # Short Channels
+        # S_D_SHORT = utils.find_short_channels(self.S_D_USED)[1]
+
+        # Long Channels
+        # S_D_LONG = utils.find_long_channels(self.S_D_USED)[1]
+
+        # Names of the wavelength specific channels (only used channels)
+        self.CH_NAMES = raw_fif.ch_names
+
+        # Drop unused channels
+        raw_fif.drop_channels([channel for channel in self.CH_NAMES if utils.get_s_d([channel])[0] not in self.S_D_USED])
+
+        assert len(raw_fif.ch_names) == len(self.S_D_USED) * len(self.WAVELENGTHS)
 
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
         self.F_S = raw_fif.info['sfreq'] * self.TIME_DRIFT_FACTOR            # fNIRS recording frequency, in Hertz
@@ -175,12 +174,6 @@ class NIRS:
         # Set recording start and end times
         self.T_REC_START = 0                                                 # fNIRS recording start time, in seconds
         self.T_REC_END = (len(raw_fif) - 1)/self.F_S                         # fNIRS recording end time, in seconds
-
-        # Drop unused channels
-        raw_fif.drop_channels([raw_fif.ch_names[ch] for ch in self.CH_UNUSED])
-
-        # Names of the wavelength specific channels (only used channels)
-        self.CH_NAMES = raw_fif.ch_names
 
         # Update sampling frequency
         # Note - To update certain attributes of the mne.Info object, the state has to manually 'unlocked'
@@ -195,6 +188,13 @@ class NIRS:
         raw_fif.info._unlocked = True
         raw_fif.info['sfreq'] = self.F_S
         raw_fif.info._unlocked = False
+
+        # Re-set channel types in case different data is read
+        self.CONFIG['CH_TYPES'] = raw_fif.info.get_channel_types()
+
+        # Re-set other meta data
+        self.DEVICE.INFO = raw_fif.info['device_info'] # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
+        self.DEVICE.EXPERIMENTER = raw_fif.info['experimenter'] # 'optoHIVE Team'
 
         # Re-create mne.raw object
         self.raw = raw_fif
@@ -215,18 +215,12 @@ class NIRS:
             self.read_config(config_file_path)
 
         # Read CSV data as Pandas DataFrame
-        # The rows are chunked in groups of `N_CHANNELS` (number of used channels),
-        # i.e. first 9 rows = recording 1; second 9 rows = recording 2; ...)
+        # The rows are chunked in groups of n_s_d (number of source-detector pairs),
+        # e.g. first <n_s_d> rows = recording 1; second x rows = recording 2; ...)
         data_pd = pd.read_csv(self.raw_file_path)
 
         # Wavelengths available (automatic extraction)
-        self.WAVELENGTHS = [int(match.groups()[0]) for column in data_pd.columns if (match := re.compile(r'(\d+)\[nm\]').match(column))] # [855, 770, 810, 885]
-
-        # Total number of wavelengths
-        self.N_WAVELENGTHS_T = len(self.WAVELENGTHS)
-
-        # Number of wavelengths used in analysis
-        self.N_WAVELENGTHS = len(self.WAVELENGTHS_PICKED) # 2
+        self.wavelengths = self.WAVELENGTHS = [int(match.groups()[0]) for column in data_pd.columns if (match := re.compile(r'(\d+)\[nm\]').match(column))]
 
         # # Number of probes
         # self.M_PROBES = self.N_PROBES # per hemisphere
@@ -234,44 +228,40 @@ class NIRS:
         # # Maximum number of channels
         # self.M_CHANNELS = (self.M_PROBES)**2 * self.N_HEMISPHERES # per wavelength
 
-        # Dictionary (map) of channel number to channel name
-        self.CH_MAP = dict(zip(map(int, data_pd['Channel'].unique()), self.S_D))
+        # Used Channels
+        self.S_D_USED = [s_d for i, s_d in enumerate(self.S_D) if i not in self.CONFIG['S_D_UNUSED']] # per wavelength
 
         # Short Channels
-        self.CH_SHORT = set(utils.find_short_channels(self.S_D)[1]) - self.CH_UNUSED
+        # S_D_SHORT = utils.find_short_channels(self.S_D_USED)[1]
 
         # Long Channels
-        self.CH_LONG = set(utils.find_long_channels(self.S_D)[1]) - self.CH_UNUSED
+        # S_D_LONG = utils.find_long_channels(self.S_D_USED)[1]
 
-        # Used Channels
-        self.CH_USED = self.CH_SHORT.union(self.CH_LONG)
+        # Names of the wavelength specific channels
+        self.CH_NAMES = [f'{s_d} {wavelength}' for s_d in self.S_D_USED for wavelength in self.WAVELENGTHS]
 
-        # Number of channels
-        self.N_CHANNELS = len(self.CH_USED) # per wavelength
+        if len(data_pd['Channel'].unique()) != len(self.S_D):
+            warnings.warn(f'''The number of source-detector pairs provided ({len(self.S_D)}) is not equal to the number of channels in the data ({len(data_pd['Channel'].unique())})!''')
+
+        # Remove unused channels and create a new DataFrame
+        data_pd = data_pd.loc[data_pd['Channel'].isin([self.S_D.index(s_d) for s_d in self.S_D_USED])]
+
+        assert len(data_pd['Channel'].unique()) == len(self.S_D_USED)
+
+        # # Check if the number of channels are as expected (they must not be more than `M_CHANNELS`)
+        # if len(data_pd['Channel'].unique()) > M_CHANNELS:
+        #     raise ValueError(f'''Duplicate channels. Expected (max.) - {M_CHANNELS}; Received - {len(data_pd["Channel"].unique())}.\n
+        #                          Please pick one of the duplicates and mark the others in `S_D_UNUSED` in the related config file.''')
 
         # Set recording start and end times
         self.T_REC_START = -data_pd['Time[ms]'].iloc[0]/1000/self.TIME_DRIFT_FACTOR    # fNIRS recording start time, in seconds
         self.T_REC_END = np.ptp(data_pd['Time[ms]'])/1000/self.TIME_DRIFT_FACTOR       # fNIRS recording end time, in seconds
 
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
-        self.F_S = (len(data_pd) - len(self.S_D))/len(self.S_D)/self.T_REC_END         # fNIRS recording frequency, in Hertz
-
-        # Remove unused channels and create a new DataFrame
-        data_pd = data_pd.loc[data_pd['Channel'].isin(self.CH_USED)]
-
-        # # Check if the number of channels are as expected (they must not be more than `N_CHANNELS`)
-        # if len(data_pd['Channel'].unique()) > M_CHANNELS:
-        #     raise ValueError(f'''Duplicate channels. Expected (max.) - {M_CHANNELS}; Received - {len(data_pd["Channel"].unique())}.\n
-        #                          Please pick one of the duplicates and mark the others in `CH_UNUSED` in the related config file.''')
-
-        # Names of the wavelength specific channels
-        # N_CHANNELS * N_WAVELENGTHS_T
-        self.CH_NAMES = [f'{self.CH_MAP[ch]} {wavelength}'
-                    for ch in list(self.CH_MAP.keys()) if ch not in self.CH_UNUSED
-                    for wavelength in self.WAVELENGTHS]
+        self.F_S = (len(data_pd) - len(self.S_D_USED))/len(self.S_D_USED)/self.T_REC_END     # fNIRS recording frequency, in Hertz
 
         # Create mne.Info Object
-        info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=self.config['CH_TYPES'])
+        info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=self.CONFIG['CH_TYPES'])
 
         # `Manually update info object parameters for location`
         # > Manual modification is not recommended, but there doesn't seem to any other option as there are no inbuilt functions for this.
@@ -295,23 +285,23 @@ class NIRS:
             # >> Only references to range of values ('[:]' or '[3:]') in device-spcific functions with no apparent applicability to the context here
             chs['loc'][11] = constants.DEVICE.SS_SEPARATION if utils.is_short_channel(chs['ch_name']) else constants.DEVICE.LS_SEPARATION
 
-        # Copy other meta data from sample *fif* file
+        # Copy other meta data
         info_csv['device_info'] = self.DEVICE.INFO # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
         info_csv['experimenter'] = self.DEVICE.EXPERIMENTER # 'optoHIVE Team'
         # meas_date # datetime.datetime(2022, 12, 16, 14, 36, 20, 620708, tzconfig=datetime.timezone.utc)
         # file_id (== meas_id)
         # meas_id (== file_id)
 
-        # Create Numpy Array from the corrected DataFrame and reshape it to have rows corresponding to time-Warying signal for all channel and picked wavelength combinations
-        # 'CH_USED x N_WAVELENGTHS_T' rows; each corresponding in order to `CH_NAMES`
-        data_np = np.array(data_pd[data_pd.columns[-self.N_WAVELENGTHS_T:]]).reshape(-1, self.N_CHANNELS * self.N_WAVELENGTHS_T).T
+        # Create Numpy Array from the corrected DataFrame and reshape it to have rows corresponding to time-warying signal for all channel and picked wavelength combinations
+        # 'n_channels = n_s_d x n_wavelengths' rows; each corresponding in order to `CH_NAMES`
+        data_np = np.array(data_pd[data_pd.columns[-len(self.WAVELENGTHS):]]).reshape(-1, len(self.S_D_USED) * len(self.WAVELENGTHS)).T
 
         # Create mne.raw object
         self.raw = mne.io.RawArray(data_np, info_csv)
 
         # Backlight intensities (for used channels only)
         if backlight:
-            self.raw_backlight = data_pd['BL'].to_numpy().reshape(-1, self.N_CHANNELS).T
+            self.raw_backlight = data_pd['BL'].to_numpy().reshape(-1, len(self.S_D_USED)).T
 
         return self.raw
 
@@ -495,7 +485,6 @@ class NIRS:
         self.events, self.event_dict = mne.events_from_annotations(self.raw)
 
         self.cases = list(self.event_dict.keys())
-        self.n_cases = len(self.cases)
 
         self.epochs = mne.Epochs(
             self.raw, self.events, event_id=self.event_dict,
@@ -516,7 +505,7 @@ class NIRS:
         """Block averaging across trials."""
         # Dictionary with '<num_targets>/<hbo|hbr>' as keys and mne.Evoked object as value
         self.evoked_dict = {f'{event}/{ch_type}': self.epochs[event].average(picks=ch_type)
-            for event in self.event_dict.keys()
+            for event in self.event_dict
             for ch_type in constants.HB_CHANNEL_TYPES
         }
 
@@ -633,7 +622,7 @@ class NIRS:
     def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None, **kwargs):
         """Plot heatmap of block averaged signals for all channels, for all cases."""
         if (fig is None) or (axs is None):
-            fig, axs = plt.subplots(2, self.n_cases, figsize=(18, 6))
+            fig, axs = plt.subplots(2, len(self.cases), figsize=(18, 6))
 
         for ax, event in zip(axs.T, self.cases):
             self.epochs[event].average().plot_image(axes=ax, clim=clim, show=False)
@@ -649,7 +638,7 @@ class NIRS:
     def plot_average_waveform(self, ch_type='hbo', fig=None, axs=None, **kwargs):
         """Plot block averaged signals for the given channel type across for all channels and cases."""
         if (fig is None) or (axs is None):
-            fig, axs = plt.subplots(self.n_channels, self.n_cases, figsize=(20, 10), sharey=True, sharex=True)
+            fig, axs = plt.subplots(len(self.s_d), len(self.cases), figsize=(20, 10), sharey=True, sharex=True)
 
         for ax, event in zip(axs.T, self.cases):
             evoked = self.epochs[event].average(picks=ch_type)

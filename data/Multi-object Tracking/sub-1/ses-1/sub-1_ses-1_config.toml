@@ -31,7 +31,7 @@ S_D = [
 ]
 
 # Unused Channels
-CH_UNUSED = [3, 7, 11]
+S_D_UNUSED = [3, 7, 11]
 
 # Coordinate frame of the optode locations.
 # Valid coordinate frames are 'meg', 'mri', 'mri_voxel', 'head', 'mri_tal', 'ras', 'fs_tal', 'ctf_head', 'ctf_meg', 'unknown'.
