@@ -59,7 +59,7 @@ class NIRS:
         self._PROJECT = project
         self._DEVICE = device
 
-        self._TIME_DRIFT_FACTOR = self._DEVICE.TIME_DRIFT_FACTOR
+        self._TIME_DRIFT_FACTOR = 1.0
 
         self.BAD_CHANNELS = set()
 
@@ -133,7 +133,7 @@ class NIRS:
             case 'auto':
                 correction_factor = self.DUR['rec'] / self.DUR['exp']
             case 'default' | True:
-                correction_factor = constants.DEVICE.TIME_DRIFT_FACTOR
+                correction_factor = self._DEVICE.TIME_DRIFT_FACTOR
             case False | None:
                 correction_factor = 1.0
 
