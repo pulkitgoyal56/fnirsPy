@@ -55,11 +55,11 @@ import mbll
 class NIRS:
     def __init__(self, data_dir=constants.DATA_DIR, project=constants.PROJECT, device=constants.DEVICE) -> None:
         """Initialize NIRS object."""
-        self.DATA_DIR = data_dir
-        self.PROJECT = project
-        self.DEVICE = device
+        self._DATA_DIR = data_dir
+        self._PROJECT = project
+        self._DEVICE = device
 
-        self.TIME_DRIFT_FACTOR = self.DEVICE.TIME_DRIFT_FACTOR
+        self._TIME_DRIFT_FACTOR = self._DEVICE.TIME_DRIFT_FACTOR
 
         self.BAD_CHANNELS = set()
 
@@ -128,18 +128,18 @@ class NIRS:
 
         return utils.get_s_d(self.raw.ch_names)
 
-    def correct_time(self, correction_factor=constants.DEVICE.TIME_DRIFT_FACTOR):
+    def correct_time(self, correction_factor=constants.DEVICE.TIME_DRIFT_FACTOR, **kwargs):
         if correction_factor == 'auto':
             correction_factor = self.DUR['rec'] / self.DUR['exp']
 
-        correction_factor /= self.TIME_DRIFT_FACTOR
+        correction_factor /= self._TIME_DRIFT_FACTOR
 
         self.F_S *= correction_factor
         self.T_REC_START /= correction_factor
         self.T_REC_END /= correction_factor
         self.DUR['rec'] /= correction_factor
 
-        self.TIME_DRIFT_FACTOR *= correction_factor
+        self._TIME_DRIFT_FACTOR *= correction_factor
 
         # Update sampling frequency
         # Note - To update certain attributes of the mne.Info object, the state has to manually 'unlocked'
@@ -155,8 +155,13 @@ class NIRS:
         self.raw.info['sfreq'] = self.F_S
         self.raw.info._unlocked = False
 
-    @TIME_DRIFT_FACTOR.setter
-    def TIME_DRIFT_FACTOR(self, correction_factor):
+    @property
+    def time_drift_factor(self):
+        """Getter method for `_TIME_DRIFT_FACTOR`."""
+        return self._TIME_DRIFT_FACTOR
+
+    @time_drift_factor.setter
+    def time_drift_factor(self, correction_factor):
         """Setter method in case the time drift factor is manually modified."""
         self.correct_time(correction_factor)
 
@@ -210,8 +215,8 @@ class NIRS:
         self.CONFIG['CH_TYPES'] = raw_fif.info.get_channel_types()
 
         # Re-set other meta data
-        self.DEVICE.INFO = raw_fif.info['device_info'] # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
-        self.DEVICE.EXPERIMENTER = raw_fif.info['experimenter'] # 'optoHIVE Team'
+        self._DEVICE.INFO = raw_fif.info['device_info'] # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
+        self._DEVICE.EXPERIMENTER = raw_fif.info['experimenter'] # 'optoHIVE Team'
 
         # Re-create mne.raw object
         self.raw = raw_fif
@@ -300,11 +305,11 @@ class NIRS:
             # For fNIRS, the 12th element is the channel separation
             # > No specific reference to this 11th index found in the MNE-Python source code
             # >> Only references to range of values ('[:]' or '[3:]') in device-spcific functions with no apparent applicability to the context here
-            chs['loc'][11] = self.DEVICE.SS_SEPARATION if utils.is_short_channel(chs['ch_name']) else self.DEVICE.LS_SEPARATION
+            chs['loc'][11] = self._DEVICE.SS_SEPARATION if utils.is_short_channel(chs['ch_name']) else self._DEVICE.LS_SEPARATION
 
         # Copy other meta data
-        info_csv['device_info'] = self.DEVICE.INFO # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
-        info_csv['experimenter'] = self.DEVICE.EXPERIMENTER # 'optoHIVE Team'
+        info_csv['device_info'] = self._DEVICE.INFO # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
+        info_csv['experimenter'] = self._DEVICE.EXPERIMENTER # 'optoHIVE Team'
         # meas_date # datetime.datetime(2022, 12, 16, 14, 36, 20, 620708, tzconfig=datetime.timezone.utc)
         # file_id (== meas_id)
         # meas_id (== file_id)
@@ -440,7 +445,7 @@ class NIRS:
 
     def read(self, subject_id, session, run, pick_wavelengths=True, **kwargs):
         """Read subject/session/run data; set annotations and set montage."""
-        base_dir = pathlib.Path(self.DATA_DIR, self.PROJECT, f'sub-{subject_id}', f'ses-{session}')
+        base_dir = pathlib.Path(self._DATA_DIR, self._PROJECT, f'sub-{subject_id}', f'ses-{session}')
 
         raw_file_path = base_dir / (f'sub-{subject_id}_ses-{session}_run-{run}_fnirs')
         annotation_file_path = base_dir / (f'sub-{subject_id}_ses-{session}_run-{run}_events.mat')
@@ -557,10 +562,10 @@ class NIRS:
     def filter(self, l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH):
         return mne.filter.FilterMixin.filter(
             self.raw,
-            l_freq=self._attr('l_freq', l_freq),
-            h_freq=self._attr('h_freq', h_freq),
-            l_trans_bandwidth=self._attr('l_trans_bandwidth', l_trans_bandwidth),
-            h_trans_bandwidth=self._attr('h_trans_bandwidth', h_trans_bandwidth)
+            l_freq=self.__attr('l_freq', l_freq),
+            h_freq=self.__attr('h_freq', h_freq),
+            l_trans_bandwidth=self.__attr('l_trans_bandwidth', l_trans_bandwidth),
+            h_trans_bandwidth=self.__attr('h_trans_bandwidth', h_trans_bandwidth)
         )
 
     def save_short_channels(self, max_dist=constants.SS_MAX_DIST):
@@ -620,10 +625,10 @@ class NIRS:
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
                 NIRS.wrap(mne.filter.FilterMixin.filter)(
-                    l_freq=self._attr('l_freq', l_freq),
-                    h_freq=self._attr('h_freq', h_freq),
-                    l_trans_bandwidth=self._attr('l_trans_bandwidth', l_trans_bandwidth),
-                    h_trans_bandwidth=self._attr('h_trans_bandwidth', h_trans_bandwidth),
+                    l_freq=self.__attr('l_freq', l_freq),
+                    h_freq=self.__attr('h_freq', h_freq),
+                    l_trans_bandwidth=self.__attr('l_trans_bandwidth', l_trans_bandwidth),
+                    h_trans_bandwidth=self.__attr('h_trans_bandwidth', h_trans_bandwidth),
                     execute=bandpass
                 ),
                 NIRS.save(savepoints)('FL'),
