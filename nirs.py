@@ -109,15 +109,12 @@ class NIRS:
             self.CONFIG = tomli.load(f)
 
             self.WAVELENGTHS_PICKED = self.CONFIG['WAVELENGTHS_PICKED']
-            self.N_PROBES = int(self.CONFIG['N_PROBES'])
-            self.N_HEMISPHERES = int(self.CONFIG['N_HEMISPHERES'])
             self.S_D = utils.hex_to_dec(self.CONFIG['S_D'])
             self.T_EXP_START = float(self.CONFIG['T_EXP_START'])
             self.T_EPOCH_START = float(self.CONFIG['T_EPOCH_START'])
             self.T_EPOCH_END = float(self.CONFIG['T_EPOCH_END'])
             self.T_BASELINE_START = float(self.CONFIG['T_BASELINE_START'])
             self.T_BASELINE_END = float(self.CONFIG['T_BASELINE_END'])
-            self.COORD_FRAME = self.CONFIG['COORD_FRAME']
 
     @property
     def s_d(self):
@@ -184,10 +181,10 @@ class NIRS:
         self.wavelengths = self.WAVELENGTHS = pd.unique([int(ch.split()[1]) for ch in raw_fif.ch_names])
 
         # # Maximum number of channels
-        # self.M_CHANNELS = int(len(raw_fif.ch_names) / len(wavelengths))  # per wavelength # self.N_PROBES ** 2
+        # self.M_CHANNELS = int(len(raw_fif.ch_names) / len(wavelengths))  # per wavelength # int(self.CONFIG['N_PROBES']) ** 2
 
         # # Number of probes
-        # self.M_PROBES = np.ceil(np.sqrt(self.M_CHANNELS) / self.N_HEMISPHERES)  # per hemisphere # self.N_PROBES
+        # self.M_PROBES = np.ceil(np.sqrt(self.M_CHANNELS) / int(self.CONFIG['N_HEMISPHERES']))  # per hemisphere # int(self.CONFIG['N_PROBES'])
 
         # Source-Detector Pairs (all)
         self.S_D = utils.get_s_d(raw_fif.ch_names)
@@ -250,10 +247,10 @@ class NIRS:
         self.wavelengths = self.WAVELENGTHS = [int(match.groups()[0]) for column in data_pd.columns if (match := re.compile(r'(\d+)\[nm\]').match(column))]
 
         # # Number of probes
-        # self.M_PROBES = self.N_PROBES # per hemisphere
+        # self.M_PROBES = int(self.CONFIG['N_PROBES']) # per hemisphere
 
         # # Maximum number of channels
-        # self.M_CHANNELS = (self.M_PROBES)**2 * self.N_HEMISPHERES # per wavelength
+        # self.M_CHANNELS = (self.M_PROBES)**2 * int(self.CONFIG['N_HEMISPHERES']) # per wavelength
 
         # Used Channels
         self.S_D_USED = [s_d for i, s_d in enumerate(self.S_D) if i not in self.CONFIG['S_D_UNUSED']] # per wavelength
@@ -427,7 +424,7 @@ class NIRS:
         """Read location data."""
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')
 
-        montage = mne.channels.read_custom_montage(self.montage_file_path, coord_frame=self.COORD_FRAME)
+        montage = mne.channels.read_custom_montage(self.montage_file_path, coord_frame=self.CONFIG['COORD_FRAME'], head_size=self.CONFIG['HEAD_SIZE'])
         # TIP - The montage stores location after dividing by a constant factor of order 3
 
         # Add missing fiducial point nasion coordinates from MNI coordinates if missing
@@ -439,7 +436,7 @@ class NIRS:
                 case 'default' | dict():
                     if reference_locations == 'default':
                         reference_locations = constants.DEFAULT_REFERENCE_LOCATIONS
-                    montage.apply_trans(mne.transforms.Transform(fro=self.COORD_FRAME, to=self.__attr('REFERENCE', reference),
+                    montage.apply_trans(mne.transforms.Transform(fro=self.CONFIG['COORD_FRAME'], to=self.__attr('REFERENCE', reference),
                         trans=utils.get_transformation(montage, reference_locations,
                                 scale=utils.get_location(self.montage_file_path, next(iter(montage.get_positions()['ch_pos'])))[0]/
                                         next(iter(montage.get_positions()['ch_pos'].values()))[0])))
