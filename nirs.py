@@ -79,7 +79,7 @@ class NIRS:
         #        # TODO: Automatic channel selection -- RMS-threshold based.
         pass
 
-    def pick_wavelengths(self, wavelengths_picked=None):
+    def pick_wavelengths(self, wavelengths_picked=None, **kwargs):
         """Pick wavelengths."""
         wavelengths_picked = self.__attr('WAVELENGTHS_PICKED', wavelengths_picked)
         self.wavelengths = wavelengths_picked
@@ -411,6 +411,11 @@ class NIRS:
         # self.T_EXP_START = 0               # <exp>                         # experiment start time, in seconds; offset due to trigger delay, in seconds
         self.T_EXP_END = self.T_EXP_START + self.DUR['exp']                  # experiment end time, in seconds
 
+        # There could be time differences in the fNIRS recordings and experiment, due to fast/slow clocks of the device.
+        # This can be corrected by scaling the recording times and frequencies by a correction factor.
+        # The correction factor is greater than 1 if `DUR['rec']` > `DUR['exp']`, and vice versa.
+        self.correct_time(**kwargs)
+
         # Set annotations in the Raw object
         self.raw.set_annotations(mne.Annotations(
             onset=self.T_EXP_START + self.mat['motion_e'], # - self.T_REC_START
@@ -445,10 +450,14 @@ class NIRS:
                 case _:
                     raise ValueError(f'Unsupported `reference_locations`.')
 
+        # Picking wavelengths is required because MNE does not support more than two wavelengths.
+        # An error will be raised when setting the montage if more than two wavelengths are used.
+        self.pick_wavelengths(**kwargs)
+
         # montage.plot()
         self.raw.set_montage(montage)
 
-    def read(self, subject_id, session, run, pick_wavelengths=True, **kwargs):
+    def read(self, subject_id, session, run, **kwargs):
         """Read subject/session/run data; set annotations and set montage."""
         base_dir = pathlib.Path(self._DATA_DIR, self._PROJECT, f'sub-{subject_id}', f'ses-{session}')
 
@@ -459,13 +468,7 @@ class NIRS:
 
         self.read_config(config_file_path, **kwargs)
         self.read_raw(raw_file_path, **kwargs)
-
         self.read_annotation(annotation_file_path, **kwargs)
-        self.correct_time(**kwargs)
-
-        # Picking wavelengths is required because MNE does not support more than two wavelengths.
-        # An error will be raised when setting the montage if more than two wavelengths are used.
-        if pick_wavelengths: self.pick_wavelengths()
         self.read_montage(montage_file_path, **kwargs)
 
         return self
