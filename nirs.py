@@ -169,7 +169,6 @@ class NIRS:
 
         # Read '.raw.fif' file and create mne.raw object
         raw_fif = mne.io.read_raw_fif(self.raw_file_path, preload=True)
-        # raw_fif.crop(tmin=120) # Delete first 60s for this dataset (idle data)
 
         # Wavelengths available
         self.wavelengths = self.WAVELENGTHS = pd.unique([int(ch.split()[1]) for ch in raw_fif.ch_names])
@@ -301,7 +300,7 @@ class NIRS:
             # For fNIRS, the 12th element is the channel separation
             # > No specific reference to this 11th index found in the MNE-Python source code
             # >> Only references to range of values ('[:]' or '[3:]') in device-spcific functions with no apparent applicability to the context here
-            chs['loc'][11] = constants.DEVICE.SS_SEPARATION if utils.is_short_channel(chs['ch_name']) else constants.DEVICE.LS_SEPARATION
+            chs['loc'][11] = self.DEVICE.SS_SEPARATION if utils.is_short_channel(chs['ch_name']) else self.DEVICE.LS_SEPARATION
 
         # Copy other meta data
         info_csv['device_info'] = self.DEVICE.INFO # {'type': 'fNIRS-CW', 'model': 'optoHIVE'}
@@ -409,7 +408,7 @@ class NIRS:
             description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `desciption` argument.
         ))
 
-    def read_montage(self, montage_file_path, *, augment=True, transform=True, reference=constants.DEFAULT_REFERENCE_LOCATIONS, **kwargs):
+    def read_montage(self, montage_file_path, *, augment=True, transform=True, reference_locations=constants.DEFAULT_REFERENCE_LOCATIONS, reference=constants.DEFAULT_REFERENCE, **kwargs):
         """Read location data."""
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')
 
@@ -421,20 +420,20 @@ class NIRS:
             montage.add_estimated_fiducials('fsaverage', mne.datasets.sample.data_path() / 'subjects')
 
         if transform:
-            match reference:
+            match reference_locations:
                 case 'default' | dict():
-                    if reference == 'default':
-                        reference = constants.DEFAULT_REFERENCE_LOCATIONS
-                    montage.apply_trans(mne.transforms.Transform(fro=self.COORD_FRAME, to=constants.DEFAULT_REFERENCE,
-                        trans=utils.get_transformation(montage, reference,
+                    if reference_locations == 'default':
+                        reference_locations = constants.DEFAULT_REFERENCE_LOCATIONS
+                    montage.apply_trans(mne.transforms.Transform(fro=self.COORD_FRAME, to=self.__attr('REFERENCE', reference),
+                        trans=utils.get_transformation(montage, reference_locations,
                                 scale=utils.get_location(self.montage_file_path, next(iter(montage.get_positions()['ch_pos'])))[0]/
                                         next(iter(montage.get_positions()['ch_pos'].values()))[0])))
                 case str():
                     # TODO: Add other specific cases and use inbuilt transformations.
                     # see https://github.com/mne-tools/mne-python/blob/maint/1.3/mne/transforms.py#L641
-                    raise ValueError(f'{reference} method is not supported yet.')
+                    raise ValueError(f'{reference_locations} method is not supported yet.')
                 case _:
-                    raise ValueError(f'Unsupported reference.')
+                    raise ValueError(f'Unsupported `reference_locations`.')
 
         # montage.plot()
         self.raw.set_montage(montage)
@@ -508,7 +507,7 @@ class NIRS:
         self.epochs = mne.Epochs(
             self.raw, self.events, event_id=self.event_dict,
             tmin=self.T_EPOCH_START, tmax=self.T_EPOCH_END,
-            reject=reject_criteria,
+            reject=self.reject_criteria,
             baseline=baseline,
             reject_by_annotation=reject_by_annotation,
             preload=True,
@@ -555,7 +554,17 @@ class NIRS:
 
         return raw
 
+    def filter(self, l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH):
+        return mne.filter.FilterMixin.filter(
+            self.raw,
+            l_freq=self._attr('l_freq', l_freq),
+            h_freq=self._attr('h_freq', h_freq),
+            l_trans_bandwidth=self._attr('l_trans_bandwidth', l_trans_bandwidth),
+            h_trans_bandwidth=self._attr('h_trans_bandwidth', h_trans_bandwidth)
+        )
+
     def save_short_channels(self, max_dist=constants.SS_MAX_DIST):
+        """Initialize member storing short channel mne.raw instance."""
         self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
     def default_pipeline(
@@ -567,7 +576,11 @@ class NIRS:
             pick_long_channels=True,
             bandpass=True,
             negative_correlation_enhancement=False,
-            ppf=constants.PPF
+            ppf=constants.PPF,
+            l_freq=constants.F_L,
+            h_freq=constants.F_H,
+            l_trans_bandwidth=constants.L_TRANS_BANDWIDTH,
+            h_trans_bandwidth=constants.H_TRANS_BANDWIDTH
         ):
         """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
         Stages: CW     (raw signal)
@@ -598,7 +611,7 @@ class NIRS:
                 NIRS.save(savepoints)('SSR'),
             # Optical Densities -> HbO and HbR concentrations -- Modified Beer Lambert Law (MBLL)
                 # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law, ppf=0.1),
-                NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=ppf),
+                NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=self.__attr('PPF', ppf)),
                 NIRS.save(savepoints)('HB'),
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
@@ -606,7 +619,13 @@ class NIRS:
                 NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.SS_MAX_DIST, max_dist=constants.LS_MAX_DIST, execute=pick_long_channels),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
-                NIRS.wrap(mne.filter.FilterMixin.filter)(l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH, execute=bandpass),
+                NIRS.wrap(mne.filter.FilterMixin.filter)(
+                    l_freq=self._attr('l_freq', l_freq),
+                    h_freq=self._attr('h_freq', h_freq),
+                    l_trans_bandwidth=self._attr('l_trans_bandwidth', l_trans_bandwidth),
+                    h_trans_bandwidth=self._attr('h_trans_bandwidth', h_trans_bandwidth),
+                    execute=bandpass
+                ),
                 NIRS.save(savepoints)('FL'),
             # Negative correlation enhancement
                 NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation)(execute=negative_correlation_enhancement),
