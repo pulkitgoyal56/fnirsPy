@@ -129,8 +129,13 @@ class NIRS:
         return utils.get_s_d(self.raw.ch_names)
 
     def correct_time(self, correction_factor=constants.DEVICE.TIME_DRIFT_FACTOR, **kwargs):
-        if correction_factor == 'auto':
-            correction_factor = self.DUR['rec'] / self.DUR['exp']
+        match correction_factor:
+            case 'auto':
+                correction_factor = self.DUR['rec'] / self.DUR['exp']
+            case 'default' | True:
+                correction_factor = constants.DEVICE.TIME_DRIFT_FACTOR
+            case False | None:
+                correction_factor = 1.0
 
         correction_factor /= self._TIME_DRIFT_FACTOR
 
