@@ -128,6 +128,38 @@ class NIRS:
 
         return utils.get_s_d(self.raw.ch_names)
 
+    def correct_time(self, correction_factor=constants.DEVICE.TIME_DRIFT_FACTOR):
+        if correction_factor == 'auto':
+            correction_factor = self.DUR['rec'] / self.DUR['exp']
+
+        correction_factor /= self.TIME_DRIFT_FACTOR
+
+        self.F_S *= correction_factor
+        self.T_REC_START /= correction_factor
+        self.T_REC_END /= correction_factor
+        self.DUR['rec'] /= correction_factor
+
+        self.TIME_DRIFT_FACTOR *= correction_factor
+
+        # Update sampling frequency
+        # Note - To update certain attributes of the mne.Info object, the state has to manually 'unlocked'
+        #      - This is not recommended, but the alternative to recreate the info object for one change is unacceptable
+        #      - If there are any sync issues with info object, this might be the where to investigate but it likely won't happen
+        #      - The attributes that can be updated without 'unlocking' are
+        #      - > `info['bads']`, `info['description']`, `info['device_info'`] `info['dev_head_t']`, `info['experimenter']`,
+        #      - > `info['helium_info']`, `info['line_freq']`, `info['temp']`, and `info['subject_info']`
+        #      - "All other entries should be considered read-only, though they can be modified by various MNE-Python functions or methods
+        #      - (which have safeguards to ensure all fields remain in sync)."
+        #      - See - https://mne.tools/stable/generated/mne.Info.html#mne.Info
+        self.raw.info._unlocked = True
+        self.raw.info['sfreq'] = self.F_S
+        self.raw.info._unlocked = False
+
+    @TIME_DRIFT_FACTOR.setter
+    def TIME_DRIFT_FACTOR(self, correction_factor):
+        """Setter method in case the time drift factor is manually modified."""
+        self.correct_time(correction_factor)
+
     def read_raw_fif(self, raw_file_path, config_file_path=None, *, backlight=True, **kwargs):
         """Read .fif file and its accompanying backlight file."""
         self.raw_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0]).with_suffix('.raw.fif')
@@ -169,25 +201,11 @@ class NIRS:
         assert len(raw_fif.ch_names) == len(self.S_D_USED) * len(self.WAVELENGTHS)
 
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
-        self.F_S = raw_fif.info['sfreq'] * self.TIME_DRIFT_FACTOR            # fNIRS recording frequency, in Hertz
+        self.F_S = raw_fif.info['sfreq']                                     # fNIRS recording frequency, in Hertz
 
         # Set recording start and end times
         self.T_REC_START = 0                                                 # fNIRS recording start time, in seconds
         self.T_REC_END = (len(raw_fif) - 1)/self.F_S                         # fNIRS recording end time, in seconds
-
-        # Update sampling frequency
-        # Note - To update certain attributes of the mne.Info object, the state has to manually 'unlocked'
-        #      - This is not recommended, but the alternative to recreate the info object for one change is unacceptable
-        #      - If there are any sync issues with info object, this might be the where to investigate but it likely won't happen
-        #      - The attributes that can be updated without 'unlocking' are
-        #      - > `info['bads']`, `info['description']`, `info['device_info'`] `info['dev_head_t']`, `info['experimenter']`,
-        #      - > `info['helium_info']`, `info['line_freq']`, `info['temp']`, and `info['subject_info']`
-        #      - "All other entries should be considered read-only, though they can be modified by various MNE-Python functions or methods
-        #      - (which have safeguards to ensure all fields remain in sync)."
-        #      - See - https://mne.tools/stable/generated/mne.Info.html#mne.Info
-        raw_fif.info._unlocked = True
-        raw_fif.info['sfreq'] = self.F_S
-        raw_fif.info._unlocked = False
 
         # Re-set channel types in case different data is read
         self.CONFIG['CH_TYPES'] = raw_fif.info.get_channel_types()
@@ -254,11 +272,11 @@ class NIRS:
         #                          Please pick one of the duplicates and mark the others in `S_D_UNUSED` in the related config file.''')
 
         # Set recording start and end times
-        self.T_REC_START = -data_pd['Time[ms]'].iloc[0]/1000/self.TIME_DRIFT_FACTOR    # fNIRS recording start time, in seconds
-        self.T_REC_END = np.ptp(data_pd['Time[ms]'])/1000/self.TIME_DRIFT_FACTOR       # fNIRS recording end time, in seconds
+        self.T_REC_START = -data_pd['Time[ms]'].iloc[0]/1000                                # fNIRS recording start time, in seconds
+        self.T_REC_END = np.ptp(data_pd['Time[ms]'])/1000                                   # fNIRS recording end time, in seconds
 
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
-        self.F_S = (len(data_pd) - len(self.S_D_USED))/len(self.S_D_USED)/self.T_REC_END     # fNIRS recording frequency, in Hertz
+        self.F_S = (len(data_pd) - len(self.S_D_USED))/len(self.S_D_USED)/self.T_REC_END    # fNIRS recording frequency, in Hertz
 
         # Create mne.Info Object
         info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=self.CONFIG['CH_TYPES'])
@@ -434,6 +452,7 @@ class NIRS:
         self.read_raw(raw_file_path, **kwargs)
 
         self.read_annotation(annotation_file_path, **kwargs)
+        self.correct_time(**kwargs)
 
         # Picking wavelengths is required because MNE does not support more than two wavelengths.
         # An error will be raised when setting the montage if more than two wavelengths are used.
