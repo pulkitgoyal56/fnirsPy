@@ -74,8 +74,9 @@ S_D_UNUSED = []
 # Valid coordinate frames are 'meg', 'mri', 'mri_voxel', 'head', 'mri_tal', 'ras', 'fs_tal', 'ctf_head', 'ctf_meg', 'unknown'.
 COORD_FRAME = 'unknown'
 
-# Head Size
-HEAD_SIZE = 0.15
+# Head Size (radius), in m
+# < 0.1262
+HEAD_SIZE = 0.095
 
 # Time of start of experiment
 T_EXP_START = 0 # -0.1
