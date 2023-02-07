@@ -625,7 +625,13 @@ class NIRS:
                 NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.SS_MAX_DIST, max_dist=constants.LS_MAX_DIST, execute=pick_long_channels),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
-                NIRS.wrap(mne.filter.FilterMixin.filter)(l_freq, h_freq, l_trans_bandwidth, h_trans_bandwidth, execute=bandpass),
+                NIRS.wrap(mne.filter.FilterMixin.filter)(
+                    l_freq=l_freq,
+                    h_freq=h_freq,
+                    l_trans_bandwidth=l_trans_bandwidth,
+                    h_trans_bandwidth=h_trans_bandwidth,
+                    execute=bandpass
+                ),
                 NIRS.save(savepoints)('FL'),
             # Negative correlation enhancement
                 NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation)(execute=negative_correlation_enhancement),
