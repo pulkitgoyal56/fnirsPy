@@ -92,7 +92,7 @@ class NIRS:
 
         self.raw.pick([ch for ch in self.raw.ch_names if int(ch.split()[1]) in self.wavelengths])
 
-    def set_bad(self, bad_channels, *, overwrite=True):
+    def set_bad(self, bad_channels, *, overwrite=False):
         """Set bad channels."""
         if isinstance(bad_channels[0], int):
             bad_channels = [self.CH_NAMES[ch] for ch in bad_channels]
