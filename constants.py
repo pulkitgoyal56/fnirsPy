@@ -26,11 +26,11 @@ class DEVICE(object):
     }
     EXPERIMENTER = 'optoHIVE Team'
 
-# Maximum length of a short channel
-SS_MAX_DIST = 0.01 # m
+# Maximum length of a short channel, in m
+SS_MAX_DIST = 0.01
 
-# Maximum length of a long channel
-LS_MAX_DIST = 0.10 # m
+# Maximum length of a long channel, in m
+LS_MAX_DIST = 0.10
 
 # Maximum threshold for channel rejection
 # Reject epochs based on maximum peak-to-peak (PTP) signal amplitude, i.e. the absolute difference between the lowest and the highest signal value.

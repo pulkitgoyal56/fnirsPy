@@ -12,7 +12,7 @@ N_HEMISPHERES = 1
 # https://mne.tools/stable/glossary.html#term-data-channels
 CH_TYPES = 'fnirs_cw_amplitude' # 'hbo', 'hbr', 'fnirs_cw_amplitude', 'fnirs_fd_ac_amplitude', 'fnirs_fd_phase', 'fnirs_od'
 
-# Source-Detector pairs (all), in Hexadecimal
+# Source-Detector pairs (names, all), in Hexadecimal
 # ['S2C_D2C', 'S27_D27', 'S2B_D2B', 'S2C_D2C', 'S2C_D27', 'S2C_D2B', 'S27_D2C', 'S27_D27', 'S27_D2B', 'S2B_D2C', 'S2B_D27', 'S2B_D2B'] # Hexadecimal
 # ['S44_D44', 'S39_D39', 'S43_D43', 'S44_D44', 'S44_D39', 'S44_D43', 'S39_D44', 'S39_D39', 'S39_D43', 'S43_D44', 'S43_D39', 'S43_D43'] # Decimal
 S_D = [
@@ -30,7 +30,7 @@ S_D = [
     'S2B_D2B'
 ]
 
-# Unused Channels
+# Unused Channels (indices)
 S_D_UNUSED = [3, 7, 11]
 
 # Coordinate frame of the optode locations.
@@ -41,13 +41,13 @@ COORD_FRAME = 'mri'
 # < 0.1262
 HEAD_SIZE = 0.095
 
-# Time of start of experiment
+# Time of start of experiment, in s
 T_EXP_START = 0 # -0.1
 
-# Start and end time of the epochs in seconds, relative to the time-locked event
+# Start and end time of the epochs in seconds, relative to the time-locked event, in s
 T_EPOCH_START = -5
 T_EPOCH_END = 15
 
-# Start and end time of the baseline in seconds, relative to the time-locked event
+# Start and end time of the baseline in seconds, relative to the time-locked event, in s
 T_BASELINE_START = -5
 T_BASELINE_END = 0
