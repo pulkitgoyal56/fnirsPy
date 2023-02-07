@@ -61,8 +61,6 @@ class NIRS:
 
         self._TIME_DRIFT_FACTOR = 1.0
 
-        self.BAD_CHANNELS = set()
-
     def __attr(self, attribute, value):
         """Modify the object attribute if value is given, otherwise return the object attribute value"""
         if value is not None:
@@ -95,11 +93,9 @@ class NIRS:
     def set_bad(self, bad_channels, *, overwrite=False):
         """Set bad channels."""
         if isinstance(bad_channels[0], int):
-            bad_channels = [self.CH_NAMES[ch] for ch in bad_channels]
+            bad_channels = [self.raw.ch_names[ch] for ch in bad_channels]
 
-        self.BAD_CHANNELS = set(bad_channels) if overwrite else self.BAD_CHANNELS.union(set(bad_channels))
-
-        self.raw.info['bads'] = list(self.BAD_CHANNELS)
+        self.raw.info['bads'] = [ch_name for ch_name in self.raw.ch_names if ch_name in bad_channels or not overwrite and ch_name in self.raw.info['bads']]
 
     def read_config(self, config_file_path, **kwargs):
         """Read additional configuration."""
