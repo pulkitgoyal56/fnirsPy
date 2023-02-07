@@ -334,7 +334,7 @@ class NIRS:
             if (raw_file_path := list(raw_file_path.parent.glob(f'{raw_file_path.stem}.*'))):
                 raw_file_path = raw_file_path[0]
             else:
-                raise FileNotFoundError(f'No file of the sort `{raw_file_path}.*`')
+                raise FileNotFoundError(f"No file of the sort `{raw_file_path}.*`")
 
         match raw_file_path.suffix:
             case '.fif':
@@ -342,7 +342,7 @@ class NIRS:
             case '.csv':
                 return self.read_raw_csv(raw_file_path, config_file_path, **kwargs)
             case other:
-                raise ValueError(f'Unsupported fNIRS file format - {other}')
+                raise ValueError(f"Unsupported fNIRS file format - {other}")
 
     def read_annotation(self, annotation_file_path, **kwargs):
         """Read annotation data."""
@@ -390,7 +390,7 @@ class NIRS:
         ])
 
         # Create dictionary of all the durations of a trial by looking for all the columns with names ending with '_p'
-        self.DUR = self.mat.filter(regex=(".*_p$")).mean().round().rename(lambda c_n: c_n[:-2]) # .astype(int)
+        self.DUR = self.mat.filter(regex=('.*_p$')).mean().round().rename(lambda c_n: c_n[:-2]) # .astype(int)
         self.DUR['trial'] = sum(self.DUR)
 
         # Read experiment end time, relative to its start time, vis-à-vis its duration
@@ -439,9 +439,9 @@ class NIRS:
                 case str():
                     # TODO: Add other specific cases and use inbuilt transformations.
                     # see https://github.com/mne-tools/mne-python/blob/maint/1.3/mne/transforms.py#L641
-                    raise ValueError(f'{reference_locations} method is not supported yet.')
+                    raise ValueError(f"{reference_locations} method is not supported yet.")
                 case _:
-                    raise ValueError(f'Unsupported `reference_locations`.')
+                    raise ValueError(f"Unsupported `reference_locations`.")
 
         # Picking wavelengths is required because MNE does not support more than two wavelengths.
         # An error will be raised when setting the montage if more than two wavelengths are used.
@@ -599,7 +599,7 @@ class NIRS:
                 NCE    (negative correlation improvement)
         """
         if any(ch != 'fnirs_cw_amplitude' for ch in self.raw.info.get_channel_types()):
-            raise ValueError('The default pipeline works only with channels of type fnirs_cw_amplitude.')
+            raise ValueError("The default pipeline works only with channels of type fnirs_cw_amplitude.")
         self.process(
             # Save raw (CW amplitude) signals
                 NIRS.save(savepoints)('CW'),
@@ -648,7 +648,7 @@ class NIRS:
         if duration is None: duration = self.DUR['exp']/3
         self.raw.plot(show_scrollbars=False, duration=duration, **kwargs)
 
-    def plot_psd(self, title='', n_fft=None, **kwargs):
+    def plot_psd(self, title="", n_fft=None, **kwargs):
         """View power spectral densities of the signals."""
         if not n_fft: n_fft = int(len(self.raw)/10)
         fig = self.raw.compute_psd().plot(average=False, **kwargs)
@@ -666,9 +666,9 @@ class NIRS:
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(1, 1, figsize=(15, 6))
         plt.plot(self.raw.times, mne_nirs.experimental_design.create_boxcar(self.raw), axes=axs)
-        plt.xlabel("Time (s)");
+        plt.xlabel("Time (s)")
         plt.title(title)
-        plt.legend(self.cases, loc="upper right")
+        plt.legend(self.cases, loc='upper right')
 
     def plot_sensors_3d(self, **kwargs):
         """Show sensors on fsaverage brain."""
@@ -687,12 +687,12 @@ class NIRS:
         for ax, event in zip(axs.T, self.cases):
             self.epochs[event].average().plot_image(axes=ax, clim=clim, show=False)
             ax[0].set_xlabel(None)
-            ax[0].set_title(f'{event} Targets | HbO')
-            ax[1].set_title(f'{event} Targets | HbR')
+            ax[0].set_title(f"{event} Targets | HbO")
+            ax[1].set_title(f"{event} Targets | HbR")
             for ax_i in ax:
                 ax_i.axvline(0, c='k', ls='--', lw=0.9)
 
-        fig.suptitle('Block-Averaged Signals Across Trials for Channels and Number of Targets')
+        fig.suptitle("Block-Averaged Signals Across Trials for Channels and Number of Targets")
         return fig
 
     def plot_average_waveform(self, ch_type='hbo', fig=None, axs=None, **kwargs):
@@ -704,7 +704,7 @@ class NIRS:
             evoked = self.epochs[event].average(picks=ch_type)
             for ax_i, ch in zip(ax, evoked.ch_names):
                 evoked.plot(picks=ch, show=False, axes=ax_i, **kwargs)
-                ax_i.set_title(f'{event} Targets | {utils.dec_to_hex([ch])[0]}')
+                ax_i.set_title(f"{event} Targets | {utils.dec_to_hex([ch])[0]}")
 
         return fig
 
