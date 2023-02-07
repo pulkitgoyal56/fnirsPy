@@ -67,16 +67,6 @@ class NIRS:
             self.__setattr__(attribute, value)
         return self.__getattribute__(attribute)
 
-    def auto_pick_channels(self):
-        # TODO: Automatic channel selection -- Heart-rate based.
-        # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
-        # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
-        # > Extraction of heart rate from functional near-infrared spectroscopy in infants.
-        # > Journal of Biomedical Optics 19, 067010. doi:10.1117/1.JBO.19.6.067010
-        # > https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4073682/
-        #        # TODO: Automatic channel selection -- RMS-threshold based.
-        pass
-
     def pick_wavelengths(self, wavelengths_picked=None, **kwargs):
         """Pick wavelengths."""
         wavelengths_picked = self.__attr('WAVELENGTHS_PICKED', wavelengths_picked)
@@ -573,6 +563,51 @@ class NIRS:
         """Initialize member storing short channel mne.raw instance."""
         self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
+    def autopick_channels(raw, l_heart_rate=constants.L_HEART_RATE, h_heart_rate=constants.H_HEART_RATE, ma_size=constants.MA_SIZE, threshold_heart_rate=constants.THRESHOLD_HEART_RATE):
+        """Automatic channel selection -- Heart-rate based.
+        # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
+        # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
+        # > Extraction of heart rate from functional near-infrared spectroscopy in infants.
+        # > Journal of Biomedical Optics 19, 067010. doi:10.1117/1.JBO.19.6.067010
+        # > https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4073682/
+        # 
+        # TODO: Automatic channel selection -- RMS-threshold based.
+
+        Returns
+        -------
+        set
+            Picks.
+        """
+        psd = raw.compute_psd(n_fft=len(raw))
+
+        cut = np.argwhere((psd.freqs >= l_heart_rate) & (psd.freqs <= h_heart_rate)).squeeze()
+        f = psd.freqs[cut]
+
+        discards = set()
+
+        for ch in range(len(psd.ch_names)):
+            y = np.log(np.e) * np.log(psd.get_data('all')[ch][cut])
+
+            # # Smooth data using moving average
+            y = sc.ndimage.uniform_filter1d(y, size=ma_size)
+
+            f0 = f[np.argmax(y)]
+            sigma0 = np.median(y - np.mean(y)) / 1.5
+            b0 = np.median(y)
+            
+            try:
+                popt, pcov = sc.optimize.curve_fit(lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b, 
+                                                   f, y, (1, f0, sigma0, b0))
+            except:
+                discards.add(ch)
+            else:
+                if popt[0] < threshold_heart_rate:
+                    discards.add(ch)
+
+        raw.info['bads'] += [ch_name for ch, ch_name in enumerate(psd.ch_names) if ch in discards]
+
+        return list(set(range(len(psd.ch_names))) - discards)
+
     def default_pipeline(
             self,
             savepoints=dict(),
@@ -582,11 +617,16 @@ class NIRS:
             pick_long_channels=True,
             bandpass=True,
             negative_correlation_enhancement=True,
+            autopick_channels=True,
             ppf=constants.PPF,
             l_freq=constants.F_L,
             h_freq=constants.F_H,
             l_trans_bandwidth=constants.L_TRANS_BANDWIDTH,
-            h_trans_bandwidth=constants.H_TRANS_BANDWIDTH
+            h_trans_bandwidth=constants.H_TRANS_BANDWIDTH,
+            l_heart_rate=constants.L_HEART_RATE,
+            h_heart_rate=constants.H_HEART_RATE,
+            ma_size=constants.MA_SIZE,
+            threshold_heart_rate=constants.THRESHOLD_HEART_RATE
         ):
         """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
         Stages: CW     (raw signal)
@@ -636,6 +676,8 @@ class NIRS:
             # Negative correlation enhancement
                 NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation)(execute=negative_correlation_enhancement),
                 NIRS.save(savepoints)('NCE'),
+            # Find channels without heart rate
+                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, ma_size, threshold_heart_rate, execute=autopick_channels),
             # Get epochs
                 NIRS.get_epochs,
             # Block average

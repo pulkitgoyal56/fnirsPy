@@ -45,6 +45,14 @@ F_H = 0.4
 L_TRANS_BANDWIDTH = 0.006
 H_TRANS_BANDWIDTH = 0.006
 
+# Range of heart beat frequency
+L_HEART_RATE = 0.8
+H_HEART_RATE = 1.8
+# Moving average filter window size 
+MA_SIZE = 2
+# Threshold for heart rate power
+THRESHOLD_HEART_RATE = 2
+
 HB_CHANNEL_TYPES = ['hbo', 'hbr']
 
 # The partial pathlength factors for different frequencies
