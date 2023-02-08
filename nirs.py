@@ -573,7 +573,7 @@ class NIRS:
         """Initialize member storing short channel mne.raw instance."""
         self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
-    def autopick_channels(raw, l_heart_rate=constants.L_HEART_RATE, h_heart_rate=constants.H_HEART_RATE, ma_size=constants.MA_SIZE, threshold_heart_rate=constants.THRESHOLD_HEART_RATE):
+    def autopick_channels(raw, l_heart_rate=constants.L_HEART_RATE, h_heart_rate=constants.H_HEART_RATE, ma_size=constants.MA_SIZE, threshold_heart_rate=constants.THRESHOLD_HEART_RATE, *, show_failed=False):
         """Automatic channel selection -- Heart-rate based.
         # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
         # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
@@ -594,7 +594,7 @@ class NIRS:
         f = psd.freqs[cut]
 
         discards = set()
-
+        failed = set()
         for ch in range(len(psd.ch_names)):
             y = np.log(np.e) * np.log(psd.get_data()[ch][cut])
 
@@ -604,16 +604,24 @@ class NIRS:
             f0 = f[np.argmax(y)]
             sigma0 = np.median(y - np.mean(y)) / 1.5
             b0 = np.median(y)
-            
+
             try:
-                popt, pcov = sc.optimize.curve_fit(lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b, 
+                popt, pcov = sc.optimize.curve_fit(lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b,
                                                    f, y, (1, f0, sigma0, b0))
             except RuntimeError:
                 logging.warn(f'''Could not fit Gaussian curve for channel {psd.ch_names[ch]}. Discarding.''')
                 discards.add(ch)
+                failed.add(ch)
             else:
                 if popt[0] < threshold_heart_rate:
                     discards.add(ch)
+
+        if show_failed:
+            fig, axs = plt.subplots(1, len(failed), figsize=(18, 3), sharex=True)
+            for ax, ch in zip(axs, failed):
+                ax.plot(f, np.log(np.e) * np.log(psd.get_data()[ch][cut]), 'b+:')
+                ax.set_title(psd.ch_names[ch])
+            plt.show()
 
         raw.info['bads'] += [ch_name for ch, ch_name in enumerate(psd.ch_names) if ch in discards]
 
@@ -625,19 +633,21 @@ class NIRS:
             remove_backlight=True,
             tddr=True,
             short_channel_regression=True,
+            autopick_channels=True,
             pick_long_channels=True,
             bandpass=True,
             negative_correlation_enhancement=True,
-            autopick_channels=True,
             ppf=constants.PPF,
+            l_heart_rate=constants.L_HEART_RATE,
+            h_heart_rate=constants.H_HEART_RATE,
+            ma_size=constants.MA_SIZE,
+            threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
+            show_failed_autopick=False,
             l_freq=constants.F_L,
             h_freq=constants.F_H,
             l_trans_bandwidth=constants.L_TRANS_BANDWIDTH,
             h_trans_bandwidth=constants.H_TRANS_BANDWIDTH,
-            l_heart_rate=constants.L_HEART_RATE,
-            h_heart_rate=constants.H_HEART_RATE,
-            ma_size=constants.MA_SIZE,
-            threshold_heart_rate=constants.THRESHOLD_HEART_RATE
+            **kwargs
         ):
         """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
         Stages: CW     (raw signal)
@@ -670,6 +680,9 @@ class NIRS:
                 # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law, ppf=0.1),
                 NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=self.__attr('PPF', ppf)),
                 NIRS.save(savepoints)('HB'),
+            # Pick only channels with enough heart rate signal
+                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, ma_size, threshold_heart_rate, show_failed=show_failed_autopick, execute=autopick_channels),
+                NIRS.save(savepoints)('AP'),
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
                 NIRS.save_short_channels,
@@ -687,8 +700,6 @@ class NIRS:
             # Negative correlation enhancement
                 NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation)(execute=negative_correlation_enhancement),
                 NIRS.save(savepoints)('NCE'),
-            # Find channels without heart rate
-                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, ma_size, threshold_heart_rate, execute=autopick_channels),
             # Get epochs
                 NIRS.get_epochs,
             # Block average
