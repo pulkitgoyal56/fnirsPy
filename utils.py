@@ -38,7 +38,7 @@ def dec_to_hex(channels):
 
     Returns
     -------
-    array-like
+    list
         List of channel names with hexadecimal IDs.
     """
     def convert(channel):
@@ -57,7 +57,7 @@ def hex_to_dec(channels):
 
     Returns
     -------
-    array-like
+    list
         List of channel names with decimal IDs.
     """
     def convert(channel):
@@ -76,7 +76,7 @@ def get_s_d(channels):
 
     Returns
     -------
-    array-like
+    list
         Ordered list of unique channel names without wavelength/chromophore labels.
     """
     return list(dict.fromkeys(map(lambda ch: ch.split()[0], channels)))
@@ -135,6 +135,30 @@ def find_long_channels(channels):
 def select_best_wavelengths(wavelengths, *args):
     # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
     pass
+
+def find_ch_pair(channels, picks):
+    """Find name of the other channel with the same source-detector pair as another channel.
+
+    Parameters
+    ----------
+    channels : array-like
+        List of channel names.
+    picks : array-like, str or int
+        List of channel names or ids to be paired.
+
+    Returns
+    -------
+    list
+        Names of channels with same source-detector pair.
+    """
+    match next(iter(picks)):
+        case int():
+            id = True
+            picks = [channels[ch] for ch in picks]
+        case str():
+            id = False
+
+    return [ch if id else channel for ch, channel in enumerate(channels) if channel not in picks and get_s_d([channel])[0] in get_s_d(picks)]
 
 def has_location(source, pos):
     match source:

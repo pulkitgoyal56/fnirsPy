@@ -196,7 +196,7 @@ class NIRS:
         self.CH_NAMES = raw_fif.ch_names
 
         # Drop unused channels
-        raw_fif.drop_channels([channel for channel in self.CH_NAMES if utils.get_s_d([channel])[0] not in self.S_D_USED])
+        raw_fif.drop_channels([ch_name for ch_name in self.CH_NAMES if utils.get_s_d([ch_name])[0] not in self.S_D_USED])
 
         assert len(raw_fif.ch_names) == len(self.S_D_USED) * len(self.WAVELENGTHS)
 
@@ -573,7 +573,7 @@ class NIRS:
         """Initialize member storing short channel mne.raw instance."""
         self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
-    def autopick_channels(raw, l_heart_rate=constants.L_HEART_RATE, h_heart_rate=constants.H_HEART_RATE, ma_size=constants.MA_SIZE, threshold_heart_rate=constants.THRESHOLD_HEART_RATE, *, show_failed=False):
+    def autopick_channels(raw, l_heart_rate=constants.L_HEART_RATE, h_heart_rate=constants.H_HEART_RATE, ma_size=constants.MA_SIZE, threshold_heart_rate=constants.THRESHOLD_HEART_RATE, *, discard_pairs=False, show_failed=False):
         """Automatic channel selection -- Heart-rate based.
         # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
         # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
@@ -616,6 +616,9 @@ class NIRS:
                 if popt[0] < threshold_heart_rate:
                     discards.add(ch)
 
+        if discard_pairs:
+            discards = discards.union(utils.find_ch_pair(psd.ch_names, discards))
+
         if show_failed:
             fig, axs = plt.subplots(1, len(failed), figsize=(18, 3), sharex=True)
             for ax, ch in zip(axs, failed):
@@ -642,6 +645,7 @@ class NIRS:
             h_heart_rate=constants.H_HEART_RATE,
             ma_size=constants.MA_SIZE,
             threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
+            discard_pairs_autopick=True,
             show_failed_autopick=False,
             l_freq=constants.F_L,
             h_freq=constants.F_H,
@@ -673,6 +677,9 @@ class NIRS:
             # Motion artifact removal -- Temporal Derivative Distribution Repair (TDDR)
                 NIRS.wrap(mne.preprocessing.nirs.tddr)(execute=tddr),
                 NIRS.save(savepoints)('TDDR'),
+            # Pick only channels with enough heart rate signal
+                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, ma_size, threshold_heart_rate, discard_pairs=discard_pairs_autopick, show_failed=show_failed_autopick, execute=autopick_channels),
+                NIRS.save(savepoints)('AP'),
             # Short-channel regression
                 NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.SS_MAX_DIST, execute=short_channel_regression),
                 NIRS.save(savepoints)('SSR'),
@@ -680,9 +687,6 @@ class NIRS:
                 # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law, ppf=0.1),
                 NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=self.__attr('PPF', ppf)),
                 NIRS.save(savepoints)('HB'),
-            # Pick only channels with enough heart rate signal
-                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, ma_size, threshold_heart_rate, show_failed=show_failed_autopick, execute=autopick_channels),
-                NIRS.save(savepoints)('AP'),
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
                 NIRS.save_short_channels,
