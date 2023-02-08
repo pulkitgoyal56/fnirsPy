@@ -15,8 +15,8 @@ dependencies:
   - tomli
   - mne
   - mne-nirs
-  - mne-qt-browser
   - scikit-learn
+  - mne-qt-browser
   # - mesalib # probably already installed 
   # - pyvista # probably already installed
   # - pyvistaqt # probably already installed
