@@ -23,6 +23,9 @@ import numpy as np
 # Table
 import pandas as pd
 
+# MATLAB v7.3 File Format
+import mat73
+
 # Advanced Computations
 import scipy as sc
 
@@ -586,7 +589,7 @@ class NIRS:
         discards = set()
 
         for ch in range(len(psd.ch_names)):
-            y = np.log(np.e) * np.log(psd.get_data('all')[ch][cut])
+            y = np.log(np.e) * np.log(psd.get_data()[ch][cut])
 
             # # Smooth data using moving average
             y = sc.ndimage.uniform_filter1d(y, size=ma_size)
@@ -598,7 +601,8 @@ class NIRS:
             try:
                 popt, pcov = sc.optimize.curve_fit(lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b, 
                                                    f, y, (1, f0, sigma0, b0))
-            except:
+            except RuntimeError:
+                logging.warn(f'''Could not fit Gaussian curve for channel {psd.ch_names[ch]}. Discarding.''')
                 discards.add(ch)
             else:
                 if popt[0] < threshold_heart_rate:
