@@ -84,13 +84,13 @@ class NIRS:
         # picks = mne.pick_types(self.raw.info, meg=False, fnirs=True) # Select channels with picked wavelengths
 
         # Pick long channels (for picked wavelength)
-        # self.raw.pick([ch for ch in utils.find_long_channels(self.raw.ch_names)[0] if int(ch.split()[1]) in self.WAVELENGTHS_PICKED])
+        # self.raw.pick([ch_name for ch_name in utils.find_long_channels(self.raw.ch_names)[0] if int(ch_name.split()[1]) in self.WAVELENGTHS_PICKED])
 
-        self.raw.pick([ch for ch in self.raw.ch_names if int(ch.split()[1]) in self.wavelengths])
+        self.raw.pick([ch_name for ch_name in self.raw.ch_names if int(ch_name.split()[1]) in self.wavelengths])
 
     def set_bad(self, bad_channels, *, overwrite=False):
         """Set bad channels."""
-        if isinstance(bad_channels[0], int):
+        if isinstance(next(iter(bad_channels)), int):
             bad_channels = [self.raw.ch_names[ch] for ch in bad_channels]
 
         self.raw.info['bads'] = [ch_name for ch_name in self.raw.ch_names if ch_name in bad_channels or not overwrite and ch_name in self.raw.info['bads']]
@@ -115,7 +115,7 @@ class NIRS:
         """Get source detector pairs ()."""
         # # Do not count channels marked as bad, if all frequencies/chromophores for that channel are marked bad.
         # # If any of the chromophore is not marked bad, count it still!
-        # return list(dict.fromkeys([ch.split(' ')[0] for ch in self.raw.ch_names if ch not in self.raw.info['bads']]))
+        # return list(dict.fromkeys([ch_name.split(' ')[0] for ch_name in self.raw.ch_names if ch_name not in self.raw.info['bads']]))
 
         return utils.get_s_d(self.raw.ch_names)
 
@@ -172,7 +172,7 @@ class NIRS:
         raw_fif = mne.io.read_raw_fif(self.raw_file_path, preload=True)
 
         # Wavelengths available
-        self.wavelengths = self.WAVELENGTHS = pd.unique([int(ch.split()[1]) for ch in raw_fif.ch_names])
+        self.wavelengths = self.WAVELENGTHS = pd.unique([int(ch_name.split()[1]) for ch_name in raw_fif.ch_names])
 
         # # Maximum number of channels
         # self.M_CHANNELS = int(len(raw_fif.ch_names) / len(wavelengths))  # per wavelength # int(self.CONFIG['N_PROBES']) ** 2
@@ -466,11 +466,8 @@ class NIRS:
 
     def process(self, *funcs):
         """Process NIRS object with function that takes the object as input and returns mne.raw instance if it's modified, else whatever."""
-        if len(funcs) > 1:
-            for func in funcs:
-                self.process(func)
-        else:
-            if isinstance((raw := funcs[0](self)), type(self.raw)):
+        for func in funcs:
+            if isinstance((raw := func(self)), type(self.raw)):
                 self.raw = raw
 
     @staticmethod
@@ -663,7 +660,7 @@ class NIRS:
                 FL     (bandpass filtering)
                 NCE    (negative correlation improvement)
         """
-        if any(ch != 'fnirs_cw_amplitude' for ch in self.raw.info.get_channel_types()):
+        if any(ch_type != 'fnirs_cw_amplitude' for ch_type in self.raw.info.get_channel_types()):
             raise ValueError("The default pipeline works only with channels of type fnirs_cw_amplitude.")
         self.process(
             # Save raw (CW amplitude) signals
@@ -770,9 +767,9 @@ class NIRS:
 
         for ax, event in zip(axs.T, self.cases):
             evoked = self.epochs[event].average(picks=ch_type)
-            for ax_i, ch in zip(ax, evoked.ch_names):
-                evoked.plot(picks=ch, show=False, axes=ax_i, **kwargs)
-                ax_i.set_title(f"{event} Targets | {utils.dec_to_hex([ch])[0]}")
+            for ax_i, ch_name in zip(ax, evoked.ch_names):
+                evoked.plot(picks=ch_name, show=False, axes=ax_i, **kwargs)
+                ax_i.set_title(f"{event} Targets | {utils.dec_to_hex([ch_name])[0]}")
 
         return fig
 

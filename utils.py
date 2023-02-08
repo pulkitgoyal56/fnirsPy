@@ -28,12 +28,12 @@ import constants
 from mne.defaults import HEAD_SIZE_DEFAULT
 
 
-def dec_to_hex(channels):
+def dec_to_hex(ch_names):
     """Converts channel IDs from decimal to hexadecimal.
 
     Parameters
     ----------
-    channels : array-like
+    ch_names : array-like
         List of channel names with decimal IDs.
 
     Returns
@@ -41,18 +41,18 @@ def dec_to_hex(channels):
     list
         List of channel names with hexadecimal IDs.
     """
-    def convert(channel):
-        s, d, r = re.compile(r'S(\d+)_D(\d+)(.*)').match(channel).groups()
+    def convert(ch_name):
+        s, d, r = re.compile(r'S(\d+)_D(\d+)(.*)').match(ch_name).groups()
         return f'S{int(s):X}_D{int(d):X}{r}'
 
-    return list(map(convert, channels))
+    return list(map(convert, ch_names))
 
-def hex_to_dec(channels):
+def hex_to_dec(ch_names):
     """Converts channel IDs from hexadecimal to decimal.
 
     Parameters
     ----------
-    channels : array-like
+    ch_names : array-like
         List of channel names with hexadecimal IDs.
 
     Returns
@@ -60,18 +60,18 @@ def hex_to_dec(channels):
     list
         List of channel names with decimal IDs.
     """
-    def convert(channel):
-        s, d, r = re.compile(r'S([0-9A-F]+)_D([0-9A-F]+)(.*)').match(channel).groups()
+    def convert(ch_name):
+        s, d, r = re.compile(r'S([0-9A-F]+)_D([0-9A-F]+)(.*)').match(ch_name).groups()
         return f'S{int(s, base=16)}_D{int(d, base=16)}{r}'
 
-    return list(map(convert, channels))
+    return list(map(convert, ch_names))
 
-def get_s_d(channels):
+def get_s_d(ch_names):
     """Gets the unique source detector names without wavelength/chromophore labels.
 
     Parameters
     ----------
-    channels : array-like
+    ch_names : array-like
         List of channel names with wavelength/chromophore labels.
 
     Returns
@@ -79,9 +79,9 @@ def get_s_d(channels):
     list
         Ordered list of unique channel names without wavelength/chromophore labels.
     """
-    return list(dict.fromkeys(map(lambda ch: ch.split()[0], channels)))
+    return list(dict.fromkeys(map(lambda ch: ch.split()[0], ch_names)))
 
-def is_short_channel(channel):
+def is_short_channel(ch_name):
     """Check if channel is short based on its name.
 
     Parameters
@@ -94,16 +94,16 @@ def is_short_channel(channel):
     bool
         True if channel is short.
     """
-    return re.compile(r'S(\d+)_D\1').match(channel)
+    return re.compile(r'S(\d+)_D\1').match(ch_name)
 
-is_long_channel = lambda channel: not is_short_channel(channel)
+is_long_channel = lambda ch_name: not is_short_channel(ch_name)
 
-def find_short_channels(channels):
+def find_short_channels(ch_names):
     """Find short channels from names.
 
     Parameters
     ----------
-    channels : array-like
+    ch_names : array-like
         List of channel names.
 
     Returns
@@ -113,14 +113,14 @@ def find_short_channels(channels):
     list
         List of indices of short channels.
     """
-    return list(filter(is_short_channel, channels)), list(compress(range(len(channels)), map(is_short_channel, channels)))
+    return list(filter(is_short_channel, ch_names)), list(compress(range(len(ch_names)), map(is_short_channel, ch_names)))
 
-def find_long_channels(channels):
+def find_long_channels(ch_names):
     """Find long channels from names.
 
     Parameters
     ----------
-    channels : array-like
+    ch_names : array-like
         List of channel names.
 
     Returns
@@ -130,20 +130,20 @@ def find_long_channels(channels):
     list
         List of indices of long channels.
     """
-    return list(filter(is_long_channel, channels)), list(compress(range(len(channels)), map(is_long_channel, channels)))
+    return list(filter(is_long_channel, ch_names)), list(compress(range(len(ch_names)), map(is_long_channel, ch_names)))
 
 def select_best_wavelengths(wavelengths, *args):
     # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
     pass
 
-def find_ch_pair(channels, picks):
+def find_ch_pair(ch_names, channels):
     """Find name of the other channel with the same source-detector pair as another channel.
 
     Parameters
     ----------
-    channels : array-like
+    ch_names : array-like
         List of channel names.
-    picks : array-like, str or int
+    channels : array-like, str or int
         List of channel names or ids to be paired.
 
     Returns
@@ -151,14 +151,14 @@ def find_ch_pair(channels, picks):
     list
         Names of channels with same source-detector pair.
     """
-    match next(iter(picks)):
+    match next(iter(channels)):
         case int():
             id = True
-            picks = [channels[ch] for ch in picks]
+            channels = [ch_names[ch] for ch in channels]
         case str():
             id = False
 
-    return [ch if id else channel for ch, channel in enumerate(channels) if channel not in picks and get_s_d([channel])[0] in get_s_d(picks)]
+    return [ch if id else ch_name for ch, ch_name in enumerate(ch_names) if ch_name not in channels and get_s_d([ch_name])[0] in get_s_d(channels)]
 
 def has_location(source, pos):
     match source:
