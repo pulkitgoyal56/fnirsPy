@@ -592,26 +592,27 @@ class NIRS:
 
         discards = set()
         failed = set()
-        for ch in range(len(psd.ch_names)):
-            y = np.log(np.e) * np.log(psd.get_data()[ch][cut])
+        for ch, ch_name in enumerate(psd.ch_names):
+            if utils.is_long_channel(ch_name):
+                y = np.log(np.e) * np.log(psd.get_data()[ch][cut])
 
-            # # Smooth data using moving average
-            y = sc.ndimage.uniform_filter1d(y, size=ma_size)
+                # # Smooth data using moving average
+                y = sc.ndimage.uniform_filter1d(y, size=ma_size)
 
-            f0 = f[np.argmax(y)]
-            sigma0 = np.median(y - np.mean(y)) / 1.5
-            b0 = np.median(y)
+                f0 = f[np.argmax(y)]
+                sigma0 = np.median(y - np.mean(y)) / 1.5
+                b0 = np.median(y)
 
-            try:
-                popt, pcov = sc.optimize.curve_fit(lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b,
-                                                   f, y, (1, f0, sigma0, b0))
-            except RuntimeError:
-                logging.warn(f'''Could not fit Gaussian curve for channel {psd.ch_names[ch]}. Discarding.''')
-                discards.add(ch)
-                failed.add(ch)
-            else:
-                if popt[0] < threshold_heart_rate:
+                try:
+                    popt, pcov = sc.optimize.curve_fit(lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b,
+                                                    f, y, (1, f0, sigma0, b0))
+                except RuntimeError:
+                    logging.warn(f'''Could not fit Gaussian curve for channel {psd.ch_names[ch]}. Discarding.''')
                     discards.add(ch)
+                    failed.add(ch)
+                else:
+                    if popt[0] < threshold_heart_rate:
+                        discards.add(ch)
 
         if discard_pairs:
             discards = discards.union(utils.find_ch_pair(psd.ch_names, discards))
