@@ -15,6 +15,10 @@ import os
 # File Path Manipulation
 import pathlib
 
+# Additional Inbuilt Utilities
+import itertools
+import functools
+
 # Regex
 import re
 
@@ -38,6 +42,7 @@ import mne_nirs # esp. for fNIRS
 
 # Neuroimaging Statistical Tools
 import nilearn
+import nilearn.plotting
 
 # Plotting
 import matplotlib.pyplot as plt
@@ -481,7 +486,9 @@ class NIRS:
     @staticmethod
     def wrap(func):
         """Wraps functions that take raw to take NIRS object."""
+        @functools.wraps(func)
         def wrapper(*args, execute=True, **kwargs):
+            @functools.wraps(func)
             def subwrapper(self):
                 if execute:
                     return func(self.raw, *args, **kwargs)
