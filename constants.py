@@ -49,7 +49,7 @@ H_TRANS_BANDWIDTH = 0.006
 L_HEART_RATE = 0.8
 H_HEART_RATE = 1.8
 # Moving average filter window size 
-MA_SIZE = 2
+MA_SIZE = None
 # Threshold for heart rate power
 THRESHOLD_HEART_RATE = 2
 

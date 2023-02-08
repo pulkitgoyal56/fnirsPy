@@ -597,7 +597,7 @@ class NIRS:
                 y = np.log(np.e) * np.log(psd.get_data()[ch][cut])
 
                 # # Smooth data using moving average
-                y = sc.ndimage.uniform_filter1d(y, size=ma_size)
+                y = sc.ndimage.uniform_filter1d(y, size=ma_size if ma_size else int(np.log(len(y))))
 
                 f0 = f[np.argmax(y)]
                 sigma0 = np.median(y - np.mean(y)) / 1.5
