@@ -51,7 +51,7 @@ H_HEART_RATE = 1.8
 # Moving average filter window size 
 MA_SIZE = None
 # Threshold for heart rate power
-THRESHOLD_HEART_RATE = 2
+THRESHOLD_HEART_RATE = 1.5
 
 HB_CHANNEL_TYPES = ['hbo', 'hbr']
 
