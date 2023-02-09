@@ -744,11 +744,7 @@ class NIRS:
                 NIRS.save(savepoints)('FL'),
             # Negative correlation enhancement
                 NIRS.wrap(mne_nirs.signal_enhancement.enhance_negative_correlation)(execute=negative_correlation_enhancement),
-                NIRS.save(savepoints)('NCE'),
-            # Get epochs
-                NIRS.get_epochs,
-            # Block average
-                NIRS.block_average
+                NIRS.save(savepoints)('NCE')
         )
         return savepoints
 
