@@ -741,17 +741,33 @@ class NIRS:
         )
         return savepoints
 
+    def get_psd(self, n_fft=None, ma_size=constants.MA_SIZE, **kwargs):
+        if n_fft is None:
+            n_fft = len(self.raw)
+
+        psd = self.raw.compute_psd(n_fft=n_fft, **kwargs)
+
+        if ma_size is None:
+            ma_size = int(np.log(len(psd)))
+
+        psd._data = sc.ndimage.uniform_filter1d(psd.get_data(), size=ma_size)
+
+        return psd
+    
+    psd = property(get_psd)
+
     def plot(self, duration=None, **kwargs):
         """Plot raw signals."""
         if duration is None: duration = self.DUR['exp']/3
         self.raw.plot(show_scrollbars=False, duration=duration, **kwargs)
 
-    def plot_psd(self, title="", n_fft=None, **kwargs):
+    def plot_psd(self, n_fft=None, ma_size=constants.MA_SIZE, average=False, title="", **kwargs):
         """View power spectral densities of the signals."""
-        if not n_fft: n_fft = int(len(self.raw)/10)
-        fig = self.raw.compute_psd().plot(average=False, **kwargs)
+        fig = self.get_psd(n_fft, ma_size).plot(average=average, **kwargs)
         fig.suptitle(title)
         fig.subplots_adjust(top=0.88)
+
+        return fig
 
     def plot_events(self, **kwargs):
         """Plot events in a scatter plot."""
