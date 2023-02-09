@@ -5,6 +5,9 @@
 NIRS class for fNIRS data processing, using MNE, for custom data.
 """
 
+# Annotations for type checking
+from __future__ import annotations
+
 # Logging and warnings
 import logging
 import warnings
@@ -537,11 +540,14 @@ class NIRS:
 
         return self.evoked_dict
 
-    @staticmethod
+    # @staticmethod
     # @wrap
     def remove_backlight(raw, raw_backlight):
         """Backlight removal based on interpolation/smoothing."""
-        raw = raw.copy()
+        if isinstance(raw, NIRS):
+            raw = raw.raw.copy()
+        else:
+            raw = raw.copy()
 
         # Create design matrix of times (3rd order)
         regressors = sm.tools.tools.add_constant(np.c_[(times := raw.times), times**2, times**3]) # Timestamp (^1, ^2, ^3)
@@ -570,7 +576,7 @@ class NIRS:
         """Initialize member storing short channel mne.raw instance."""
         self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
-    @staticmethod
+    # @staticmethod
     def autopick_channels(raw, l_heart_rate=constants.L_HEART_RATE, h_heart_rate=constants.H_HEART_RATE, threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
                           n_fft=None, ma_size=constants.MA_SIZE, *,
                           discard_pairs=False, show_discarded=False, show_failed=False):
@@ -588,6 +594,9 @@ class NIRS:
         list
             Picks.
         """
+        if isinstance(raw, NIRS):
+            raw = raw.raw
+
         psd = raw.compute_psd(n_fft=n_fft if n_fft else len(raw))
 
         cut = np.argwhere((psd.freqs >= l_heart_rate) & (psd.freqs <= h_heart_rate)).squeeze()
