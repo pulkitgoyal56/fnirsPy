@@ -601,7 +601,7 @@ class NIRS:
                 y = np.log(np.e) * np.log(psd.get_data()[ch][cut])
 
                 # Smooth data using moving average
-                y = sc.ndimage.uniform_filter1d(y, size=ma_size if ma_size else int(np.log(len(y))))
+                y = sc.ndimage.uniform_filter1d(y, size=ma_size if ma_size else round(np.log(len(y))))
 
                 # Gaussian + constant
                 offset_gaussian = lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b
@@ -748,7 +748,7 @@ class NIRS:
         psd = self.raw.compute_psd(n_fft=n_fft, **kwargs)
 
         if ma_size is None:
-            ma_size = int(np.log(len(psd)))
+            ma_size = round(np.log(len(psd)))
 
         psd._data = sc.ndimage.uniform_filter1d(psd.get_data(), size=ma_size)
 
@@ -758,7 +758,9 @@ class NIRS:
 
     def plot(self, duration=None, **kwargs):
         """Plot raw signals."""
-        if duration is None: duration = self.DUR['exp']/3
+        if duration is None:
+            duration = self.DUR['exp']/3
+
         self.raw.plot(show_scrollbars=False, duration=duration, **kwargs)
 
     def plot_psd(self, n_fft=None, ma_size=constants.MA_SIZE, average=False, title="", **kwargs):
@@ -775,14 +777,19 @@ class NIRS:
         fig.axes[0].set_yticklabels(list(self.event_dict))
         fig.subplots_adjust(right=0.7)
 
+        return fig
+
     def plot_boxcar(self, title='', fig=None, axs=None, **kwargs):
         """Plot events in a boxcar plot."""
         if (fig is None) or (axs is None):
-            fig, axs = plt.subplots(1, 1, figsize=(15, 6))
-        plt.plot(self.raw.times, mne_nirs.experimental_design.create_boxcar(self.raw), axes=axs)
+            fig, ax = plt.subplots(1, 1, figsize=(15, 6))
+
+        plt.plot(self.raw.times, mne_nirs.experimental_design.create_boxcar(self.raw), axes=ax)
         plt.xlabel("Time (s)")
         plt.title(title)
         plt.legend(self.cases, loc='upper right')
+        
+        return fig
 
     def plot_sensors_3d(self, **kwargs):
         """Show sensors on fsaverage brain."""
