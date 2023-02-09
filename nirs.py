@@ -540,14 +540,14 @@ class NIRS:
 
         return self.evoked_dict
 
-    # @staticmethod
+    def copy(self):
+        """Get copy of member mne.raw."""
+        return self.raw.copy()
+
     # @wrap
     def remove_backlight(raw, raw_backlight):
         """Backlight removal based on interpolation/smoothing."""
-        if isinstance(raw, NIRS):
-            raw = raw.raw.copy()
-        else:
-            raw = raw.copy()
+        raw = raw.copy()
 
         # Create design matrix of times (3rd order)
         regressors = sm.tools.tools.add_constant(np.c_[(times := raw.times), times**2, times**3]) # Timestamp (^1, ^2, ^3)
@@ -621,7 +621,7 @@ class NIRS:
                 a0 = np.max(y) - b0
                 sigma_y_0 = np.median(np.abs(y - np.mean(y)))
                 sigma_f_0 = (y - b0)*(y > b0) @ np.abs(f - f0) / np.sum(np.abs(y - b0))
-                
+
                 p0 = (a0, f0, sigma_f_0, b0)
 
                 # Bound of parameters
@@ -696,8 +696,10 @@ class NIRS:
                 CWx    (backlight removed raw signal)
                 OD     (optical density)
                 TDD    (motion artifact removal)
+                AP     (autopick channels)
                 SSR    (short-channel regression)
                 HB     (chromophore/haemoglobin)
+                AP     (pick long channels, after saving short channels)
                 FL     (bandpass filtering)
                 NCE    (negative correlation improvement)
         """
@@ -762,7 +764,7 @@ class NIRS:
         psd._data = sc.ndimage.uniform_filter1d(psd.get_data(), size=ma_size)
 
         return psd
-    
+
     psd = property(get_psd)
 
     def plot(self, duration=None, **kwargs):
@@ -797,7 +799,7 @@ class NIRS:
         plt.xlabel("Time (s)")
         plt.title(title)
         plt.legend(self.cases, loc='upper right')
-        
+
         return fig
 
     def plot_sensors_3d(self, **kwargs):
