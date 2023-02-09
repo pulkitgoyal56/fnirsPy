@@ -748,7 +748,7 @@ class NIRS:
         psd = self.raw.compute_psd(n_fft=n_fft, **kwargs)
 
         if ma_size is None:
-            ma_size = round(np.log(len(psd)))
+            ma_size = round(np.log(n_fft))
 
         psd._data = sc.ndimage.uniform_filter1d(psd.get_data(), size=ma_size)
 
