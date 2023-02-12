@@ -429,6 +429,10 @@ class NIRS:
             description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
         ))
 
+        # Extract events of interest
+        self.events, self.event_dict = mne.events_from_annotations(self.raw)
+        self.cases = list(self.event_dict)
+
     def read_montage(self, montage_file_path, *, augment=True, transform=True, reference_locations=constants.DEFAULT_REFERENCE_LOCATIONS, reference=constants.DEFAULT_REFERENCE, **kwargs):
         """Read location data."""
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')
@@ -507,7 +511,7 @@ class NIRS:
             return subwrapper
         return wrapper
 
-    def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=False, plot_drop_log=False, **kwargs):
+    def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=False, preload=True, plot_drop_log=False, **kwargs):
         """Extract epochs."""
 
         tmin = self.__attr('T_EPOCH_START', tmin)
@@ -517,18 +521,13 @@ class NIRS:
 
         self.reject_criteria = reject_criteria
 
-        # Extract events of interest
-        self.events, self.event_dict = mne.events_from_annotations(self.raw)
-
-        self.cases = list(self.event_dict.keys())
-
         self.epochs = mne.Epochs(
             self.raw, self.events, event_id=self.event_dict,
-            tmin=self.T_EPOCH_START, tmax=self.T_EPOCH_END,
+            tmin=tmin, tmax=tmax,
             reject=self.reject_criteria,
             baseline=baseline,
             reject_by_annotation=reject_by_annotation,
-            preload=True,
+            preload=preload,
             **kwargs
         )
 
@@ -802,7 +801,7 @@ class NIRS:
     def plot_events(self, **kwargs):
         """Plot events in a scatter plot."""
         fig = mne.viz.plot_events(self.events, event_id=self.event_dict, sfreq=self.raw.info['sfreq'], show=False)
-        fig.axes[0].set_yticklabels(list(self.event_dict))
+        fig.axes[0].set_yticklabels(self.cases)
         fig.subplots_adjust(right=0.7)
 
         return fig
