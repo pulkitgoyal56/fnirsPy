@@ -496,7 +496,7 @@ class NIRS:
             return subwrapper
         return wrapper
 
-    def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=False, **kwargs):
+    def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=False, plot_drop_log=False, **kwargs):
         """Extract epochs."""
 
         tmin = self.__attr('T_EPOCH_START', tmin)
@@ -521,8 +521,9 @@ class NIRS:
             **kwargs
         )
 
-        # # Visualise the log of dropped epochs
-        # epochs.plot_drop_log()
+        # Visualise the log of dropped epochs
+        if plot_drop_log:
+            self.epochs.plot_drop_log()
 
         return self.events, self.event_dict, self.epochs
 
