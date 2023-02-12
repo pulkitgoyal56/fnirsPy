@@ -675,7 +675,7 @@ class NIRS:
         if len(discards) == len(utils.find_long_channels(psd.ch_names)[0]):
             raise ValueError("No channels with heart beat signal power above threshold. Either decrease threshold or investigate using plots.")
         else:
-            return list(set(range(len(psd.ch_names))) - discards)
+            return [psd.ch_names[ch] for ch in set(range(len(psd.ch_names))) - discards]
 
     def default_pipeline(
             self,
