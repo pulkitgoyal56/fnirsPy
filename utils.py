@@ -79,7 +79,7 @@ def get_s_d(ch_names):
     list
         Ordered list of unique channel names without wavelength/chromophore labels.
     """
-    return list(dict.fromkeys(map(lambda ch: ch.split()[0], ch_names)))
+    return list(dict.fromkeys(map(lambda ch_name: ch_name.split()[0], ch_names)))
 
 def is_short_channel(ch_name):
     """Check if channel is short based on its name.
@@ -137,7 +137,7 @@ def select_best_wavelengths(wavelengths, *args):
     pass
 
 def find_ch_pair(ch_names, channels):
-    """Find name of the other channel with the same source-detector pair as another channel.
+    """Find names of the other channels with the same source-detector pair as queried channels.
 
     Parameters
     ----------
