@@ -581,7 +581,7 @@ class NIRS:
     # @staticmethod
     def autopick_channels(raw, l_heart_rate=constants.L_HEART_RATE, h_heart_rate=constants.H_HEART_RATE, threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
                           n_fft=None, ma_size=constants.MA_SIZE, *,
-                          discard_pairs=False, show_discarded=False, show_failed=False):
+                          preserve_pairs=True, show_discarded=False, show_failed=False):
         """Automatic channel selection -- Heart-rate based.
         # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
         # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
@@ -604,8 +604,13 @@ class NIRS:
         cut = np.argwhere((psd.freqs >= l_heart_rate) & (psd.freqs <= h_heart_rate)).squeeze()
         f = psd.freqs[cut]
 
+        # Gaussian + constant
+        _offset_gaussian = lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b
+
         discards = set()
         failed = set()
+        p0s = dict()
+        popts = dict()
         for ch, ch_name in enumerate(psd.ch_names):
             if utils.is_long_channel(ch_name):
                 # Calculate the log of the data (base 10)
@@ -614,9 +619,6 @@ class NIRS:
                 # Smooth data using moving average
                 y = sc.ndimage.uniform_filter1d(y, size=ma_size if ma_size else round(np.log(len(y))))
 
-                # Gaussian + constant
-                offset_gaussian = lambda x, a, x0, sigma, b: a * np.exp(-(x - x0)**2 / 2 / sigma**2) + b
-
                 # Intial values
                 f0 = f[np.argmax(y)]
                 b0 = np.median(y)
@@ -624,42 +626,48 @@ class NIRS:
                 sigma_y_0 = np.median(np.abs(y - np.mean(y)))
                 sigma_f_0 = (y - b0)*(y > b0) @ np.abs(f - f0) / np.sum(np.abs(y - b0))
 
-                p0 = (a0, f0, sigma_f_0, b0)
+                p0s[ch] = (a0, f0, sigma_f_0, b0)
 
                 # Bound of parameters
                 lower_bound = (0, f[0], 0, b0 - sigma_y_0)
                 upper_bound = (np.inf, f[-1], np.ptp(f)/2, b0 + sigma_y_0)
 
                 try:
-                    popt, pcov = sc.optimize.curve_fit(offset_gaussian, f, y, p0, bounds=(lower_bound, upper_bound))
+                    popts[ch], pcov = sc.optimize.curve_fit(_offset_gaussian, f, y, p0s[ch], bounds=(lower_bound, upper_bound))
                 except RuntimeError:
-                    logging.warn(f'''Could not fit Gaussian curve for channel {psd.ch_names[ch]}. Discarding.''')
+                    logging.warn(f'''Could not fit Gaussian curve for channel {psd.ch_names[ch]}. Discarding...''')
                     discards.add(ch)
                     failed.add(ch)
                 else:
-                    if popt[0] < threshold_heart_rate:
+                    if popts[ch][0] < threshold_heart_rate:
                         discards.add(ch)
 
-        if discard_pairs:
-            discards = discards.union(utils.find_ch_pair(psd.ch_names, discards))
+        if discards:
+            match preserve_pairs:
+                case False:
+                    discards = discards.union(utils.find_ch_pairs(psd.ch_names, discards))
+                case True:
+                    discards -= set(utils.find_ch_unpaired(discards, psd.ch_names))
+                case None:
+                    pass
 
-        if show_discarded:
-            fig, axs = plt.subplots(np.ceil(len(discards)/3).astype(int), min(3, len(discards)), figsize=(6 * min(3, len(discards)), 3 * np.ceil(len(discards)/3)), sharex=True)
-            for ax, ch in zip(axs.ravel() if len(discards) > 1 else [axs], discards):
-                ax.plot(f, np.log(np.e) * np.log(psd.get_data()[ch][cut]), 'b+:')
-                ax.set_title(psd.ch_names[ch])
+        def _make_overlay_plots(channels, title):
+            fig, axs = plt.subplots(np.ceil(len(channels)/3).astype(int), min(3, len(channels)), figsize=(6 * min(3, len(channels)), 3 * np.ceil(len(channels)/3)), sharex=True, sharey=True)
+            for ax, ch in zip(axs.ravel() if len(channels) > 1 else [axs], channels):
+                ax.plot(f, np.log(np.e) * np.log(psd.get_data()[ch][cut]), '+:b', markersize=3, alpha=0.6)
+                ax.plot(f, _offset_gaussian(f, *p0s[ch]), 'o:g', markersize=2, label="$P_0$")
+                if ch in popts: ax.plot(f, _offset_gaussian(f, *popts[ch]), 'x:r', markersize=2, label="$P_{opt}$")
+                ax.set_title(f"{psd.ch_names[ch]} | $a = {popts[ch][0]:.2f}$")
+                ax.legend()
             # fig.subplots_adjust(top=0.88)
-            plt.suptitle(f"Discarded Fits | {len(discards)}")
+            plt.suptitle(f"{title} | {len(channels)}")
             plt.tight_layout()
 
-        if show_failed:
-            fig, axs = plt.subplots(np.ceil(len(failed)/3).astype(int), min(3, len(failed)), figsize=(6 * min(3, len(failed)), 3 * np.ceil(len(failed)/3)), sharex=True)
-            for ax, ch in zip(axs.ravel() if len(failed) > 1 else [axs], failed):
-                ax.plot(f, np.log(np.e) * np.log(psd.get_data()[ch][cut]), 'b+:')
-                ax.set_title(psd.ch_names[ch])
-            # fig.subplots_adjust(top=0.88)
-            plt.suptitle(f"Failed Fits | {len(failed)}")
-            plt.tight_layout()
+        if show_discarded and discards:
+            _make_overlay_plots(discards, "Discarded Fits")
+
+        if show_failed and failed:
+            _make_overlay_plots(failed, "Failed Fits")
 
         raw.info['bads'] += [ch_name for ch, ch_name in enumerate(psd.ch_names) if ch in discards]
 
@@ -684,7 +692,7 @@ class NIRS:
             n_fft=None,
             ma_size=constants.MA_SIZE,
             threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
-            discard_pairs_autopick=True,
+            preserve_pairs_autopick=True,
             show_discarded_autopick=False,
             show_failed_autopick=False,
             l_freq=constants.F_L,
@@ -720,7 +728,7 @@ class NIRS:
                 NIRS.wrap(mne.preprocessing.nirs.tddr)(execute=tddr),
                 NIRS.save(savepoints)('TDDR'),
             # Pick only channels with enough heart rate signal
-                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, threshold_heart_rate, n_fft, ma_size, discard_pairs=discard_pairs_autopick,
+                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, threshold_heart_rate, n_fft, ma_size, preserve_pairs=preserve_pairs_autopick,
                                                   show_discarded=show_discarded_autopick, show_failed=show_failed_autopick, execute=autopick_channels),
                 NIRS.save(savepoints)('AP'),
             # Short-channel regression

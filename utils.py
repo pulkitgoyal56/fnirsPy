@@ -10,6 +10,7 @@ import pathlib
 
 # Additional Iteration Utilities
 from itertools import compress
+from collections import Counter
 
 # Additional Function Utilities
 from functools import partial
@@ -136,8 +137,8 @@ def select_best_wavelengths(wavelengths, *args):
     # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
     pass
 
-def find_ch_pair(ch_names, channels):
-    """Find names of the other channels with the same source-detector pair as queried channels.
+def find_ch_pairs(ch_names, channels):
+    """Find the other channels with the same source-detector pair as the queried channels.
 
     Parameters
     ----------
@@ -149,7 +150,7 @@ def find_ch_pair(ch_names, channels):
     Returns
     -------
     list
-        Names of channels with same source-detector pair.
+        Names/ids of remaining channels with same source-detector pair.
     """
     match next(iter(channels)):
         case int():
@@ -159,6 +160,31 @@ def find_ch_pair(ch_names, channels):
             id = False
 
     return [ch if id else ch_name for ch, ch_name in enumerate(ch_names) if ch_name not in channels and get_s_d([ch_name])[0] in get_s_d(channels)]
+
+def find_ch_unpaired(channels, ch_names=None):
+    """Find the channels that are not paired.
+
+    Parameters
+    ----------
+    channels : array-like, str or int
+        List of channel names or ids to be filtered.
+    ch_names : array-like, optional
+        List of channel names.
+        Required if channels is a list of ids.
+
+    Returns
+    -------
+    list
+        Names/ids of channels with same source-detector pair.
+    """
+    match next(iter(channels)):
+        case int():
+            id = True
+            channels = [ch_names[ch] for ch in channels]
+        case str():
+            id = False
+
+    return [ch_names.index(ch_name) if id else ch_name for ch_name in channels if Counter(map(lambda ch_name: ch_name.split()[0], channels))[get_s_d([ch_name])[0]] == 1]
 
 def has_location(source, pos):
     match source:
