@@ -169,6 +169,30 @@ def find_channels_type(type, ch_names):
     """
     return list(filter(partial(is_channel_type, type), ch_names)), list(compress(range(len(ch_names)), map(partial(is_channel_type, type), ch_names)))
 
+def find_channels(type, separation, ch_names):
+    """Find channels of given type and separation from names.
+
+    Parameters
+    ----------
+    type: str
+        Channel type.
+    separation: {'long', 'short'}
+        Channel separation.
+    ch_names : array-like
+        List of channel names.
+
+    Returns
+    -------
+    list
+        List of channels (names) of given type and separation.
+    list
+        List of indices of these channels.
+    """
+    channels, chs = find_channels_type(type, ch_names)
+    channels, chs_ = {'long': find_long_channels, 'short': find_short_channels}[separation](channels)
+
+    return channels, [chs[i] for i in chs_]
+
 def select_best_wavelengths(wavelengths, *args):
     # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
     pass
