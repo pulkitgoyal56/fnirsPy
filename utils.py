@@ -99,12 +99,12 @@ def is_short_channel(ch_name):
 
 is_long_channel = lambda ch_name: not is_short_channel(ch_name)
 
-def is_channel_type(type, ch_name):
+def is_channel_type(ch_type, ch_name):
     """Check if channel is of given type based on its name.
 
     Parameters
     ----------
-    type: str
+    ch_type: str
         Channel type.
     channel : str
         Channel name.
@@ -114,7 +114,7 @@ def is_channel_type(type, ch_name):
     bool
         True if channel is of given type.
     """
-    return re.compile(fr'S\d+_D\d+ {type}').match(ch_name)
+    return re.compile(fr'S\d+_D\d+ {ch_type}').match(ch_name)
 
 def find_short_channels(ch_names):
     """Find short channels from names.
@@ -150,12 +150,12 @@ def find_long_channels(ch_names):
     """
     return list(filter(is_long_channel, ch_names)), list(compress(range(len(ch_names)), map(is_long_channel, ch_names)))
 
-def find_channels_type(type, ch_names):
+def find_channels_type(ch_type, ch_names):
     """Find channels of given type from names.
 
     Parameters
     ----------
-    type: str
+    ch_type: str
         Channel type.
     ch_names : array-like
         List of channel names.
@@ -167,14 +167,14 @@ def find_channels_type(type, ch_names):
     list
         List of indices of these channels.
     """
-    return list(filter(partial(is_channel_type, type), ch_names)), list(compress(range(len(ch_names)), map(partial(is_channel_type, type), ch_names)))
+    return list(filter(partial(is_channel_type, ch_type), ch_names)), list(compress(range(len(ch_names)), map(partial(is_channel_type, ch_type), ch_names)))
 
-def find_channels(type, separation, ch_names):
+def find_channels(ch_type, separation, ch_names):
     """Find channels of given type and separation from names.
 
     Parameters
     ----------
-    type: str
+    ch_type: str
         Channel type.
     separation: {'long', 'short'}
         Channel separation.
@@ -188,7 +188,7 @@ def find_channels(type, separation, ch_names):
     list
         List of indices of these channels.
     """
-    channels, chs = find_channels_type(type, ch_names)
+    channels, chs = find_channels_type(ch_type, ch_names)
     channels, chs_ = {'long': find_long_channels, 'short': find_short_channels}[separation](channels)
 
     return channels, [chs[i] for i in chs_]
