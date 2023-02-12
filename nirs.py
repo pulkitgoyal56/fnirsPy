@@ -166,12 +166,12 @@ class NIRS:
         self.raw.info._unlocked = False
 
     @property
-    def time_drift_factor(self):
+    def tdf(self):
         """Getter method for `_TIME_DRIFT_FACTOR`."""
         return self._TIME_DRIFT_FACTOR
 
-    @time_drift_factor.setter
-    def time_drift_factor(self, correction_factor):
+    @tdf.setter
+    def tdf(self, correction_factor):
         """Setter method in case the time drift factor is manually modified."""
         self.correct_time(correction_factor)
 
