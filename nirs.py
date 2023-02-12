@@ -219,7 +219,7 @@ class NIRS:
 
         # Set recording start and end times
         self.T_REC_START = 0                                                 # fNIRS recording start time, in seconds
-        self.T_REC_END = (len(raw_fif) - 1)/self.F_S                         # fNIRS recording end time, in seconds
+        self.T_REC_END = len(raw_fif)/self.F_S                         # fNIRS recording end time, in seconds
 
         # Re-set channel types in case different data is read
         self.CONFIG['CH_TYPES'] = raw_fif.info.get_channel_types()
@@ -290,7 +290,7 @@ class NIRS:
         self.T_REC_END = np.ptp(data_pd['Time[ms]'])/1000                                   # fNIRS recording end time, in seconds
 
         # Sampling frequency (based on difference between timestamps in consecutive readings ~54ms)
-        self.F_S = (len(data_pd) - len(self.S_D_USED))/len(self.S_D_USED)/self.T_REC_END    # fNIRS recording frequency, in Hertz
+        self.F_S = len(data_pd)/len(self.S_D_USED)/self.T_REC_END    # fNIRS recording frequency, in Hertz
 
         # Create mne.Info Object
         info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=self.CONFIG['CH_TYPES'])
