@@ -72,6 +72,16 @@ class NIRS:
 
         self._TIME_DRIFT_FACTOR = 1.0
 
+    def __len__(self):
+        """Number of channels (excl. bad channels)."""
+        return len(self.raw.ch_names) - len(self.raw.info['bads'])
+    
+    @property
+    def shape(self):
+        """Shape of data (excl. bad channels)."""
+        n_chs, n_t = self.raw.get_data().shape
+        return n_chs - len(self.raw.info['bads']), n_t
+
     def __attr(self, attribute, value):
         """Modify the object attribute if value is given, otherwise return the object attribute value"""
         if value is not None:
