@@ -193,6 +193,28 @@ def find_channels(ch_type, separation, ch_names):
 
     return channels, [chs[i] for i in chs_]
 
+def filter_channels(regex, function, ch_names):
+    """Match channels based on the given regex and filter using the given function.
+
+    Parameters
+    ----------
+    regex: str
+        Regex to match by.
+    function: function
+        Function that takes captured groups as arguments and returns a boolean.
+    ch_names : array-like
+        List of channel names.
+
+    Returns
+    -------
+    list
+        List of channels (names) filtered using the regex and passed funciton.
+    list
+        List of indices of these channels.
+    """
+    picks = list(filter(lambda ch_name, regex=re.compile(regex): function(*regex.match(ch_name).groups()), ch_names))
+    return picks, [ch_names.index(pick) for pick in picks]
+
 def select_best_wavelengths(wavelengths, *args):
     # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
     pass
