@@ -393,6 +393,7 @@ class NIRS:
         # Create dictionary of all the durations of a trial by looking for all the columns with names ending with '_p'
         self.DUR = self.mat.filter(regex=('.*_p$')).mean().round().rename(lambda c_n: c_n[:-2]) # .astype(int)
         self.DUR['trial'] = sum(self.DUR)
+        self.F_E = 1/self.DUR['trial']
 
         # Read experiment end time, relative to its start time, vis-à-vis its duration
         endtime_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_endtime').with_suffix('.mat')
