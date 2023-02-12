@@ -426,7 +426,7 @@ class NIRS:
         self.raw.set_annotations(mne.Annotations(
             onset=self.T_EXP_START + self.mat['motion_e'], # - self.T_REC_START
             duration=self.mat['motion_p'],
-            description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `desciption` argument.
+            description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
         ))
 
     def read_montage(self, montage_file_path, *, augment=True, transform=True, reference_locations=constants.DEFAULT_REFERENCE_LOCATIONS, reference=constants.DEFAULT_REFERENCE, **kwargs):
