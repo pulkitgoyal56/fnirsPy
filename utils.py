@@ -99,6 +99,23 @@ def is_short_channel(ch_name):
 
 is_long_channel = lambda ch_name: not is_short_channel(ch_name)
 
+def is_channel_type(type, ch_name):
+    """Check if channel is of given type based on its name.
+
+    Parameters
+    ----------
+    type: str
+        Channel type.
+    channel : str
+        Channel name.
+
+    Returns
+    -------
+    bool
+        True if channel is of given type.
+    """
+    return re.compile(fr'S\d+_D\d+ {type}').match(ch_name)
+
 def find_short_channels(ch_names):
     """Find short channels from names.
 
@@ -132,6 +149,25 @@ def find_long_channels(ch_names):
         List of indices of long channels.
     """
     return list(filter(is_long_channel, ch_names)), list(compress(range(len(ch_names)), map(is_long_channel, ch_names)))
+
+def find_channels_type(type, ch_names):
+    """Find channels of given type from names.
+
+    Parameters
+    ----------
+    type: str
+        Channel type.
+    ch_names : array-like
+        List of channel names.
+
+    Returns
+    -------
+    list
+        List of channels (names) of given type.
+    list
+        List of indices of these channels.
+    """
+    return list(filter(partial(is_channel_type, type), ch_names)), list(compress(range(len(ch_names)), map(partial(is_channel_type, type), ch_names)))
 
 def select_best_wavelengths(wavelengths, *args):
     # TODO: Automate wavelength selection based on absorption spectra of hemoglobin.
