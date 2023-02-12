@@ -126,6 +126,7 @@ class NIRS:
         match correction_factor:
             case 'auto':
                 correction_factor = self.DUR['rec'] / self.DUR['exp']
+                logging.info(f'''Using Auto Correction Factor - {correction_factor}''')
             case 'default' | True:
                 correction_factor = self._DEVICE.TIME_DRIFT_FACTOR
             case False | None:
