@@ -156,7 +156,7 @@ class NIRS:
         #      - This is not recommended, but the alternative to recreate the info object for one change is unacceptable
         #      - If there are any sync issues with info object, this might be the where to investigate but it likely won't happen
         #      - The attributes that can be updated without 'unlocking' are
-        #      - > `info['bads']`, `info['description']`, `info['device_info'`] `info['dev_head_t']`, `info['experimenter']`,
+        #      - > `info['bads']`, `info['description']`, `info['device_info'`], `info['dev_head_t']`, `info['experimenter']`,
         #      - > `info['helium_info']`, `info['line_freq']`, `info['temp']`, and `info['subject_info']`
         #      - "All other entries should be considered read-only, though they can be modified by various MNE-Python functions or methods
         #      - (which have safeguards to ensure all fields remain in sync)."
@@ -219,7 +219,7 @@ class NIRS:
 
         # Set recording start and end times
         self.T_REC_START = 0                                                 # fNIRS recording start time, in seconds
-        self.T_REC_END = len(raw_fif)/self.F_S                         # fNIRS recording end time, in seconds
+        self.T_REC_END = len(raw_fif)/self.F_S                               # fNIRS recording end time, in seconds
 
         # Re-set channel types in case different data is read
         self.CONFIG['CH_TYPES'] = raw_fif.info.get_channel_types()
