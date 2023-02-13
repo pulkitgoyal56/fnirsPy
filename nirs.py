@@ -747,9 +747,9 @@ class NIRS:
             n_fft=None,
             ma_size=constants.MA_SIZE,
             threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
-            preserve_pairs_autopick=True,
-            show_discarded_autopick=False,
-            show_failed_autopick=False,
+            preserve_pairs=True,
+            show_discarded=False,
+            show_failed=False,
             l_freq=constants.F_L,
             h_freq=constants.F_H,
             l_trans_bandwidth=constants.L_TRANS_BANDWIDTH,
@@ -784,8 +784,8 @@ class NIRS:
                 NIRS.wrap(mne.preprocessing.nirs.tddr)(execute=tddr),
                 NIRS.save(savepoints)('TDDR'),
             # Pick only channels with enough heart rate signal
-                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, threshold_heart_rate, n_fft, ma_size, preserve_pairs=preserve_pairs_autopick,
-                                                  show_discarded=show_discarded_autopick, show_failed=show_failed_autopick, execute=autopick_channels),
+                NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, threshold_heart_rate, n_fft, ma_size, preserve_pairs=preserve_pairs,
+                                                  show_discarded=show_discarded, show_failed=show_failed, execute=autopick_channels),
                 NIRS.save(savepoints)('AP'),
             # Short-channel regression
                 NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.SS_MAX_DIST, execute=short_channel_regression),
