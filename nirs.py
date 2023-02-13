@@ -177,6 +177,7 @@ class NIRS:
 
     def read_raw_fif(self, raw_file_path, config_file_path=None, *, backlight=True, **kwargs):
         """Read .fif file and its accompanying backlight file."""
+        raw_file_path = pathlib.Path(raw_file_path)
         self.raw_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0]).with_suffix('.raw.fif')
 
         if config_file_path:
