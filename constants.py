@@ -17,7 +17,7 @@ class DEVICE(object):
     LS_SEPARATION = 0.03
 
     # Time drift factor
-    TIME_DRIFT_FACTOR = 1.0045
+    TIME_DRIFT_FACTOR = 1.0045 # 0.779
 
     # Additional device info
     INFO = {

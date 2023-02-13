@@ -361,74 +361,117 @@ class NIRS:
         """Read annotation data."""
         self.annotation_file_path = pathlib.Path(annotation_file_path).with_suffix('.mat')
 
-        # `Stages of the experiment`
-        # > *\<exp\>* → **\[ *\<tri\>* = *\<wait1\>* → *\<target\>* → *\<motion\>* → *\<probe\>* → *\<feedb\>* → *\<feedbEnd\>* → {data_write()} \]** → *\<expEnd\>*
-        # > *`T_REC_START`* ------ *`T_EXP_START`* == *0* ------------------------------------------------------------ *`T_EXP_END`* ------ *`T_REC_END`*
+        if self._PROJECT == 'Multi-object Tracking':
+            # `Stages of the experiment`
+            # > *\<exp\>* → **\[ *\<tri\>* = *\<wait1\>* → *\<target\>* → *\<motion\>* → *\<probe\>* → *\<feedb\>* → *\<feedbEnd\>* → {data_write()} \]** → *\<expEnd\>*
+            # > *`T_REC_START`* ------ *`T_EXP_START`* == *0* ------------------------------------------------------------ *`T_EXP_END`* ------ *`T_REC_END`*
 
-        # Load Experiment Results
-        self.mat = pd.DataFrame(sc.io.loadmat(self.annotation_file_path)['blockdata'], columns=[
-            'experiment_number',     # 0     # <trl.exp_number>              # experiment number
-            'subject_number',        # 1     # <trl.sub_number>              # subject number
-            'trial_number',          # 2     # <trl.num>                     # trial number
+            # Load Experiment Results
+            self.mat = pd.DataFrame(sc.io.loadmat(self.annotation_file_path)['blockdata'], columns=[
+                'experiment_number',     # 0     # <trl.exp_number>              # experiment number
+                'subject_number',        # 1     # <trl.sub_number>              # subject number
+                'trial_number',          # 2     # <trl.num>                     # trial number
 
-            'num_targets',           # 3     # <trl.numTargets(trl.num)>     # number of targets ({0, 2, 3, 4, 5})
-            'probe_match',           # 4     # <trl.probeMatch(trl.num)>     # target (1) or not (0)
+                'num_targets',           # 3     # <trl.numTargets(trl.num)>     # number of targets ({0, 2, 3, 4, 5})
+                'probe_match',           # 4     # <trl.probeMatch(trl.num)>     # target (1) or not (0)
 
-            'checker_pres',          # 5     # <trl.checkerPres(trl.num)>    # 0 -- checkerboard present (1) or not (0)
-            'checker_side',          # 6     # <trl.checkerSide(trl.num)>    # 0 -- checkerboard display side; right (1) or left (2), or NA (0)
+                'checker_pres',          # 5     # <trl.checkerPres(trl.num)>    # 0 -- checkerboard present (1) or not (0)
+                'checker_side',          # 6     # <trl.checkerSide(trl.num)>    # 0 -- checkerboard display side; right (1) or left (2), or NA (0)
 
-            'id_correct',            # 7     # <dat.IDcor>                   # correct (1), incorrect (2), other (3), none (4)
+                'id_correct',            # 7     # <dat.IDcor>                   # correct (1), incorrect (2), other (3), none (4)
 
-            'rt_correct',            # 8     # <dat.RTcor>                   # {∈ (trl.RTmin, trl.RTmax)} (1), {≤ trl.RTmin (2)}, {≥ trl.RTmax} (3), {> trl.RTmaxWait} (4)
+                'rt_correct',            # 8     # <dat.RTcor>                   # {∈ (trl.RTmin, trl.RTmax)} (1), {≤ trl.RTmin (2)}, {≥ trl.RTmax} (3), {> trl.RTmaxWait} (4)
 
-            'rt',                    # 9     # <dat.RT>                      # reaction time, in seconds
+                'rt',                    # 9     # <dat.RT>                      # reaction time, in seconds
 
-            'tri_e',                 # 10    # <time.triE>                   # <tri - exp> -- trial starting time, relative to start of the experiment, in seconds
-            'wait_e',                # 11    # <time.waitE>                  # <wait1 - exp> -- wait starting time, relative to the start of the experiment, in seconds
-            'target_e',              # 12    # <time.targetE>                # <target - exp> -- target display time, relative to start of the experiment, in seconds
-            'motion_e',              # 13    # <time.motionE>                # <motion - exp> -- motion starting time, relative to start of the experiment, in seconds
-            'probe_e',               # 14    # <time.probeE>                 # <probe - exp> -- response collection time, relative to start of the experiment, in seconds
+                'tri_e',                 # 10    # <time.triE>                   # <tri - exp> -- trial starting time, relative to start of the experiment, in seconds
+                'wait_e',                # 11    # <time.waitE>                  # <wait1 - exp> -- wait starting time, relative to the start of the experiment, in seconds
+                'target_e',              # 12    # <time.targetE>                # <target - exp> -- target display time, relative to start of the experiment, in seconds
+                'motion_e',              # 13    # <time.motionE>                # <motion - exp> -- motion starting time, relative to start of the experiment, in seconds
+                'probe_e',               # 14    # <time.probeE>                 # <probe - exp> -- response collection time, relative to start of the experiment, in seconds
 
-            'tri_t',                 # 15    # <time.triT>                   # <tri - tri> -- trial starting time, relative to start of the trial, in seconds
-            'wait_t',                # 16    # <time.waitT>                  # <wait - tri> -- ??
-            'target_t',              # 17    # <time.targetT>                # <target - tri> -- target display time, relative to start of the trial, in seconds
-            'motion_t',              # 18    # <time.motionT>                # <motion - tri> -- motion starting time, relative to start of the trial, in seconds
-            'probe_t',               # 19    # <time.probeT>                 # <probe - tri> -- response collection time, relative to start of the trial, in seconds
+                'tri_t',                 # 15    # <time.triT>                   # <tri - tri> -- trial starting time, relative to start of the trial, in seconds
+                'wait_t',                # 16    # <time.waitT>                  # <wait - tri> -- ??
+                'target_t',              # 17    # <time.targetT>                # <target - tri> -- target display time, relative to start of the trial, in seconds
+                'motion_t',              # 18    # <time.motionT>                # <motion - tri> -- motion starting time, relative to start of the trial, in seconds
+                'probe_t',               # 19    # <time.probeT>                 # <probe - tri> -- response collection time, relative to start of the trial, in seconds
 
-            'wait_p',                # 20    # <time.waitP>                  # <target - wait1> -- wait duration, in seconds
-            'target_p',              # 21    # <time.targetP>                # <motion - target> -- target presentation duration, in seconds
-            'motion_p',              # 22    # <time.motionP>                # <probe - motion> -- motion duration, in seconds
-            'probe_p',               # 23    # <time.probeP>                 # <feedb - probe> -- time window for response input, in seconds
-            'feedb_p'                # 24    # <time.feedbP>                 # <feedbEnd - feedb> -- response feedback report duration, in seconds
-        ])
+                'wait_p',                # 20    # <time.waitP>                  # <target - wait1> -- wait duration, in seconds
+                'target_p',              # 21    # <time.targetP>                # <motion - target> -- target presentation duration, in seconds
+                'motion_p',              # 22    # <time.motionP>                # <probe - motion> -- motion duration, in seconds
+                'probe_p',               # 23    # <time.probeP>                 # <feedb - probe> -- time window for response input, in seconds
+                'feedb_p'                # 24    # <time.feedbP>                 # <feedbEnd - feedb> -- response feedback report duration, in seconds
+            ])
 
-        # Create dictionary of all the durations of a trial by looking for all the columns with names ending with '_p'
-        self.DUR = self.mat.filter(regex=('.*_p$')).mean().round().rename(lambda c_n: c_n[:-2]) # .astype(int)
-        self.DUR['trial'] = sum(self.DUR)
-        self.F_E = 1/self.DUR['trial']
+            # Create dictionary of all the durations of a trial by looking for all the columns with names ending with '_p'
+            self.DUR = self.mat.filter(regex=('.*_p$')).mean().round().rename(lambda c_n: c_n[:-2]) # .astype(int)
+            self.DUR['trial'] = sum(self.DUR)
+            self.F_E = 1/self.DUR['trial']
 
-        # Read experiment end time, relative to its start time, vis-à-vis its duration
-        endtime_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_endtime').with_suffix('.mat')
-        self.DUR['exp'] = float(sc.io.loadmat(endtime_file_path)['expEnd'])  # <expEnd - exp> -- duration of the entire experiment, in seconds
+            # Read experiment end time, relative to its start time, vis-à-vis its duration
+            endtime_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_endtime').with_suffix('.mat')
+            self.DUR['exp'] = float(sc.io.loadmat(endtime_file_path)['expEnd'])  # <expEnd - exp> -- duration of the entire experiment, in seconds
 
-        # Set the duration of the recording
-        self.DUR['rec'] = self.T_REC_END     # - self.T_REC_START            # recording duration, in seconds
+            # Set the duration of the recording
+            self.DUR['rec'] = self.T_REC_END     # - self.T_REC_START            # recording duration, in seconds
 
-        # Read experiment end time and set start time
-        # self.T_EXP_START = 0               # <exp>                         # experiment start time, in seconds; offset due to trigger delay, in seconds
-        self.T_EXP_END = self.T_EXP_START + self.DUR['exp']                  # experiment end time, in seconds
+            # Read experiment end time and set start time
+            # self.T_EXP_START = 0               # <exp>                         # experiment start time, in seconds; offset due to trigger delay, in seconds
+            self.T_EXP_END = self.T_EXP_START + self.DUR['exp']                  # experiment end time, in seconds
 
-        # There could be time differences in the fNIRS recordings and experiment, due to fast/slow clocks of the device.
-        # This can be corrected by scaling the recording times and frequencies by a correction factor.
-        # The correction factor is greater than 1 if `DUR['rec']` > `DUR['exp']`, and vice versa.
-        self.correct_time(**kwargs)
+            # There could be time differences in the fNIRS recordings and experiment, due to fast/slow clocks of the device.
+            # This can be corrected by scaling the recording times and frequencies by a correction factor.
+            # The correction factor is greater than 1 if `DUR['rec']` > `DUR['exp']`, and vice versa.
+            self.correct_time(**kwargs)
 
-        # Set annotations in the Raw object
-        self.raw.set_annotations(mne.Annotations(
-            onset=self.T_EXP_START + self.mat['motion_e'], # - self.T_REC_START
-            duration=self.mat['motion_p'],
-            description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
-        ))
+            # Set annotations in the Raw object
+            self.raw.set_annotations(mne.Annotations(
+                onset=self.T_EXP_START + self.mat['motion_e'], # - self.T_REC_START
+                duration=self.mat['motion_p'],
+                description=self.mat['num_targets'].astype(int) # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
+            ))
+
+        elif self._PROJECT == 'Working-Memory':
+            # `Stages of the experiment`
+            # > *\<exp\>* → **\[ *\<tri\>* = *\<wait1\>* → *\<target\>* → *\<motion\>* → *\<probe\>* → *\<feedb\>* → *\<feedbEnd\>* → {data_write()} \]** → *\<expEnd\>*
+            # > *`T_REC_START`* ------ *`T_EXP_START`* == *0* ------------------------------------------------------------ *`T_EXP_END`* ------ *`T_REC_END`*
+
+            # Load Experiment Results
+            self.mat = sc.io.loadmat('/home/pulkitgoyal56/fNIRS-attentional-load/data/Working-Memory/sub-1/ses-1/sub-1_ses-1_run-2_onsets.mat')['onsets']
+
+            # Create dictionary of all the durations of a trial
+            self.DUR = pd.Series({
+                'target': 1.0,                                                   # <ti.ms> -- memory set
+                'motion': 6.0,                                                   # <ti.mi> -- maintainance interval
+                'probe': 1.0,                                                    # <ti.mp> -- memory probe
+                'feedb': 5.0,                                                    # <ti.ri> -- response interval
+                'wait': 1.0,                                                     # <ti.ti> -- inter trial interval
+            })
+            self.DUR['trial'] = sum(self.DUR)
+            self.F_E = 1/self.DUR['trial']
+
+            # Read experiment end time, relative to its start time, vis-à-vis its duration
+            endtime_file_path = '/home/pulkitgoyal56/fNIRS-attentional-load/data/Working-Memory/sub-1/ses-1/sub-1_ses-1_run-2_endtime.mat'
+            self.DUR['exp'] = float(sc.io.loadmat(endtime_file_path)['expEnd'])  # <expEnd - exp> -- duration of the entire experiment, in seconds
+
+            # Set the duration of the recording
+            self.DUR['rec'] = self.T_REC_END     # - self.T_REC_START            # recording duration, in seconds
+
+            # Read experiment end time and set start time
+            # self.T_EXP_START = 0               # <exp>                         # experiment start time, in seconds; offset due to trigger delay, in seconds
+            self.T_EXP_END = self.T_EXP_START + self.DUR['exp']                  # experiment end time, in seconds
+
+            # There could be time differences in the fNIRS recordings and experiment, due to fast/slow clocks of the device.
+            # This can be corrected by scaling the recording times and frequencies by a correction factor.
+            # The correction factor is greater than 1 if `DUR['rec']` > `DUR['exp']`, and vice versa.
+            self.correct_time(**kwargs)
+
+            # Set annotations in the Raw object
+            self.raw.set_annotations(mne.Annotations(
+                onset=self.mat[:, 0], # - self.T_REC_START
+                duration=self.DUR['motion'],
+                description=('LOW', 'HIGH')[int(np.unique(self.mat[:, 1])) - 1]  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
+            ))
 
         # Extract events of interest
         self.events, self.event_dict = mne.events_from_annotations(self.raw)
