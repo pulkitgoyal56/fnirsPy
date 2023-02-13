@@ -575,13 +575,14 @@ class NIRS:
 
         return raw
 
-    def filter(self, l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH):
+    def filter(self, l_freq=constants.F_L, h_freq=constants.F_H, l_trans_bandwidth=constants.L_TRANS_BANDWIDTH, h_trans_bandwidth=constants.H_TRANS_BANDWIDTH, filter_length='auto', **kwargs):
         return mne.filter.FilterMixin.filter(
             self.raw,
             l_freq=self.__attr('l_freq', l_freq),
             h_freq=self.__attr('h_freq', h_freq),
             l_trans_bandwidth=self.__attr('l_trans_bandwidth', l_trans_bandwidth),
-            h_trans_bandwidth=self.__attr('h_trans_bandwidth', h_trans_bandwidth)
+            h_trans_bandwidth=self.__attr('h_trans_bandwidth', h_trans_bandwidth),
+            filter_length=filter_length if filter_length else self.shape[-1]
         )
 
     def save_short_channels(self, max_dist=constants.SS_MAX_DIST):
@@ -709,6 +710,7 @@ class NIRS:
             h_freq=constants.F_H,
             l_trans_bandwidth=constants.L_TRANS_BANDWIDTH,
             h_trans_bandwidth=constants.H_TRANS_BANDWIDTH,
+            filter_length='auto',
             **kwargs
         ):
         """Default pipeline that runs a bunch of typical pre-processing functions and returns intermediate mne.raw instances as a dictionary.
@@ -759,6 +761,7 @@ class NIRS:
                     h_freq=h_freq,
                     l_trans_bandwidth=l_trans_bandwidth,
                     h_trans_bandwidth=h_trans_bandwidth,
+                    filter_length=filter_length if filter_length else self.shape[-1],
                     execute=bandpass
                 ),
                 NIRS.save(savepoints)('FL'),
