@@ -711,8 +711,11 @@ class NIRS:
             for ax, ch in zip(axs.ravel() if len(channels) > 1 else [axs], channels):
                 ax.plot(f, np.log(np.e) * np.log(psd.get_data()[ch][cut]), '+:b', markersize=3, alpha=0.6)
                 ax.plot(f, _offset_gaussian(f, *p0s[ch]), 'o:g', markersize=2, label="$P_0$")
-                if ch in popts: ax.plot(f, _offset_gaussian(f, *popts[ch]), 'x:r', markersize=2, label="$P_{opt}$")
-                ax.set_title(f"{psd.ch_names[ch]} | $a = {popts[ch][0]:.2f}$")
+                if ch in popts:
+                    ax.plot(f, _offset_gaussian(f, *popts[ch]), 'x:r', markersize=2, label="$P_{opt}$")
+                    ax.set_title(f"{psd.ch_names[ch]} | $a = {popts[ch][0]:.2f}$")
+                else:
+                    ax.set_title(f"{psd.ch_names[ch]} | $a = N/A$")
                 ax.legend()
             # fig.subplots_adjust(top=0.88)
             plt.suptitle(f"{title} | {len(channels)}")
