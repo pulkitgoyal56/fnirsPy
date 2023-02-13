@@ -708,7 +708,7 @@ class NIRS:
 
         def _make_overlay_plots(channels, title):
             fig, axs = plt.subplots(np.ceil(len(channels)/3).astype(int), min(3, len(channels)), figsize=(6 * min(3, len(channels)), 3 * np.ceil(len(channels)/3)), sharex=True, sharey=True)
-            for ax, ch in zip(axs.ravel() if len(channels) > 1 else [axs], channels):
+            for ax, ch in zip(np.atleast_2d(axs).ravel(), channels):
                 ax.plot(f, np.log(np.e) * np.log(psd.get_data()[ch][cut]), '+:b', markersize=3, alpha=0.6)
                 ax.plot(f, _offset_gaussian(f, *p0s[ch]), 'o:g', markersize=2, label="$P_0$")
                 if ch in popts:
@@ -882,7 +882,7 @@ class NIRS:
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(2, len(self.cases), figsize=(18, 6))
 
-        for ax, event in zip(axs.T, self.cases):
+        for ax, event in zip(np.atleast_2d(axs.T), self.cases):
             self.epochs[event].average().plot_image(axes=ax, clim=clim, show=False)
             ax[0].set_xlabel(None)
             ax[0].set_title(f"{event} Targets | HbO")
@@ -898,7 +898,7 @@ class NIRS:
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(len(self.s_d), len(self.cases), figsize=(20, 10), sharey=True, sharex=True)
 
-        for ax, event in zip(axs.T, self.cases):
+        for ax, event in zip(np.atleast_2d(axs.T), self.cases):
             evoked = self.epochs[event].average(picks=ch_type)
             for ax_i, ch_name in zip(ax, evoked.ch_names):
                 evoked.plot(picks=ch_name, show=False, axes=ax_i, **kwargs)
