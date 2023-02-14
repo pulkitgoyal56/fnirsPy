@@ -433,11 +433,15 @@ class NIRS:
 
         elif self._PROJECT == 'Working-Memory':
             # `Stages of the experiment`
-            # > *\<exp\>* → **\[ *\<tri\>* = *\<wait1\>* → *\<target\>* → *\<motion\>* → *\<probe\>* → *\<feedb\>* → *\<feedbEnd\>* → {data_write()} \]** → *\<expEnd\>*
+            # > *\<exp\>* → **\[ *\<tri\>* → *\<ti.ms\>* → *\<ti.mi\>* → *\<ti.mp\>* → *\<ti.ri\>* → *\<ti.iti\>* → {data_write()} \]** → *\<expEnd\>*
             # > *`T_REC_START`* ------ *`T_EXP_START`* == *0* ------------------------------------------------------------ *`T_EXP_END`* ------ *`T_REC_END`*
 
             # Load Experiment Results
-            self.mat = sc.io.loadmat('/home/pulkitgoyal56/fNIRS-attentional-load/data/Working-Memory/sub-1/ses-1/sub-1_ses-1_run-2_onsets.mat')['onsets']
+            self.annotation_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_onsets').with_suffix('.mat')
+            self.mat = pd.DataFrame(sc.io.loadmat(self.annotation_file_path)['onsets'], columns=[
+                'onsets',                # 0     # <>                            # onsets
+                'condition'              # 1     # <>                            # load condition
+            ])
 
             # Create dictionary of all the durations of a trial
             self.DUR = pd.Series({
@@ -451,7 +455,7 @@ class NIRS:
             self.F_E = 1/self.DUR['trial']
 
             # Read experiment end time, relative to its start time, vis-à-vis its duration
-            endtime_file_path = '/home/pulkitgoyal56/fNIRS-attentional-load/data/Working-Memory/sub-1/ses-1/sub-1_ses-1_run-2_endtime.mat'
+            endtime_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_endtime').with_suffix('.mat')
             self.DUR['exp'] = float(sc.io.loadmat(endtime_file_path)['expEnd'])  # <expEnd - exp> -- duration of the entire experiment, in seconds
 
             # Set the duration of the recording
@@ -468,14 +472,16 @@ class NIRS:
 
             # Set annotations in the Raw object
             self.raw.set_annotations(mne.Annotations(
-                onset=self.mat[:, 0], # - self.T_REC_START
+                onset=self.mat['onsets'], # - self.T_REC_START
                 duration=self.DUR['motion'],
-                description=('LOW', 'HIGH')[int(np.unique(self.mat[:, 1])) - 1]  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
+                description=('LOW', 'HIGH')[int(np.unique(self.mat['condition'])) - 1]  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
             ))
 
         # Extract events of interest
         self.events, self.event_dict = mne.events_from_annotations(self.raw)
         self.cases = list(self.event_dict)
+
+        return self.events, self.event_dict
 
     def read_montage(self, montage_file_path, *, augment=True, transform=True, reference_locations=constants.DEFAULT_REFERENCE_LOCATIONS, reference=constants.DEFAULT_REFERENCE, **kwargs):
         """Read location data."""
@@ -555,7 +561,7 @@ class NIRS:
             return subwrapper
         return wrapper
 
-    def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=False, preload=True, plot_drop_log=False, **kwargs):
+    def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=True, preload=True, plot_drop_log=False, **kwargs):
         """Extract epochs."""
 
         tmin = self.__attr('T_EPOCH_START', tmin)
@@ -579,7 +585,7 @@ class NIRS:
         if plot_drop_log:
             self.epochs.plot_drop_log()
 
-        return self.events, self.event_dict, self.epochs
+        return self.epochs
 
     def block_average(self, rename=True):
         """Block averaging across trials."""
