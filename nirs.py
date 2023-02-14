@@ -125,12 +125,23 @@ class NIRS:
 
     @property
     def s_d(self):
-        """Get source detector pairs ()."""
+        """Get source detector pairs (incl. bad channels)."""
         # # Do not count channels marked as bad, if all frequencies/chromophores for that channel are marked bad.
         # # If any of the chromophore is not marked bad, count it still!
         # return list(dict.fromkeys([ch_name.split(' ')[0] for ch_name in self.raw.ch_names if ch_name not in self.raw.info['bads']]))
 
         return utils.get_s_d(self.raw.ch_names)
+    
+    @property
+    def good_ch_names(self):
+        """Get names of good channels in order."""
+        # list(set(self.raw.ch_names) - set(self.raw.info['bads']))
+        return list(dict.fromkeys([ch_name for ch_name in self.raw.ch_names if ch_name not in self.raw.info['bads']]))
+    
+    @property
+    def bad_ch_names(self):
+        """Get names of bad channels."""
+        return self.raw.info['bads']
 
     def correct_time(self, correction_factor=constants.DEVICE.TIME_DRIFT_FACTOR, **kwargs):
         match correction_factor:
@@ -899,7 +910,7 @@ class NIRS:
         fig.suptitle("Block-Averaged Signals Across Trials for Channels and Number of Targets")
         return fig
 
-    def plot_average_waveform(self, ch_type='hbo', fig=None, axs=None, **kwargs):
+    def plot_average_waveform(self, fig=None, axs=None, **kwargs):
         """Plot block averaged signals for the given channel type across for all channels and cases."""
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(len(self.s_d), len(self.cases), figsize=(20, 10), sharey=True, sharex=True)
