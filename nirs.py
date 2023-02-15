@@ -609,7 +609,7 @@ class NIRS:
         if rename:
             # Rename channels until the encoding of frequency in ch_name is fixed
             for condition in self.evoked_dict:
-                self.evoked_dict[condition].rename_channels(lambda x: x[:-4])
+                self.evoked_dict[condition].rename_channels(lambda x: x.split(' ')[0])
 
         return self.evoked_dict
 
@@ -894,13 +894,13 @@ class NIRS:
         brain.add_sensors(self.raw.info, trans='fsaverage')
         brain.show_view(azimuth=90, elevation=90, distance=500)
 
-    def plot_average_heatmap(self, clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None, **kwargs):
+    def plot_average_heatmap(self, picks=None, exclude='bads', clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None, **kwargs):
         """Plot heatmap of block averaged signals for all channels, for all cases."""
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(2, len(self.cases), figsize=(18, 6))
 
         for ax, event in zip(np.atleast_2d(axs.T), self.cases):
-            self.epochs[event].average().plot_image(axes=ax, clim=clim, show=False)
+            self.epochs[event].average().plot_image(picks=picks, exclude=exclude, axes=ax, clim=clim, show=False)
             ax[0].set_xlabel(None)
             ax[0].set_title(f"{event} Targets | HbO")
             ax[1].set_title(f"{event} Targets | HbR")
