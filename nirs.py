@@ -75,7 +75,7 @@ class NIRS:
     def __len__(self):
         """Number of channels (excl. bad channels)."""
         return len(self.raw.ch_names) - len(self.raw.info['bads'])
-    
+
     @property
     def shape(self):
         """Shape of data (excl. bad channels)."""
@@ -131,13 +131,13 @@ class NIRS:
         # return list(dict.fromkeys([ch_name.split(' ')[0] for ch_name in self.raw.ch_names if ch_name not in self.raw.info['bads']]))
 
         return utils.get_s_d(self.raw.ch_names)
-    
+
     @property
     def good_ch_names(self):
         """Get names of good channels in order."""
         # list(set(self.raw.ch_names) - set(self.raw.info['bads']))
         return list(dict.fromkeys([ch_name for ch_name in self.raw.ch_names if ch_name not in self.raw.info['bads']]))
-    
+
     @property
     def bad_ch_names(self):
         """Get names of bad channels."""
@@ -526,7 +526,8 @@ class NIRS:
         self.pick_wavelengths(**kwargs)
 
         # montage.plot()
-        self.raw.set_montage(montage)
+        self.montage = montage
+        self.raw.set_montage(self.montage)
 
     def read(self, subject_id, session, run, **kwargs):
         """Read subject/session/run data; set annotations and set montage."""
@@ -572,9 +573,9 @@ class NIRS:
             return subwrapper
         return wrapper
 
-    def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, reject_by_annotation=True, preload=True, plot_drop_log=False, **kwargs):
+    def get_epochs(self, tmin=None, tmax=None, baseline=(None, None), reject_criteria=constants.REJECT_CRITERIA, *,
+                   reject_by_annotation=True, preload=True, plot_drop_log=False, **kwargs):
         """Extract epochs."""
-
         tmin = self.__attr('T_EPOCH_START', tmin)
         tmax = self.__attr('T_EPOCH_END', tmax)
 
@@ -649,6 +650,21 @@ class NIRS:
     def save_short_channels(self, max_dist=constants.SS_MAX_DIST):
         """Initialize member storing short channel mne.raw instance."""
         self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
+
+    def scalp_coupling_index(raw, threshold=constants.THRESHOLD_SCI, *, plot_sci_drops=False):
+        """Pick only channels with scalp coupling index above given threshold."""
+        raw = raw.copy()
+
+        sci = mne.preprocessing.nirs.scalp_coupling_index(raw)
+        raw.info['bads'] += [ch_name for ch_name in raw.ch_names if ch_name in itertools.compress(raw.ch_names, sci < threshold)]
+
+        if plot_sci_drops:
+            plt.hist(sci)
+            plt.xlabel = 'Scalp Coupling Index'
+            plt.ylabel = 'Count'
+            plt.xlim = [0, 1]
+
+        return raw
 
     # @staticmethod
     def autopick_channels(raw, l_heart_rate=constants.L_HEART_RATE, h_heart_rate=constants.H_HEART_RATE, threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
@@ -756,20 +772,22 @@ class NIRS:
             savepoints=dict(),
             remove_backlight=True,
             tddr=True,
-            short_channel_regression=True,
+            scalp_coupling_index=True,
             autopick_channels=True,
+            short_channel_regression=True,
             pick_long_channels=True,
             bandpass=True,
             negative_correlation_enhancement=True,
-            ppf=constants.PPF,
+            threshold_sci=constants.THRESHOLD_SCI,
             l_heart_rate=constants.L_HEART_RATE,
             h_heart_rate=constants.H_HEART_RATE,
+            threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
             n_fft=None,
             ma_size=constants.MA_SIZE,
-            threshold_heart_rate=constants.THRESHOLD_HEART_RATE,
             preserve_pairs=True,
             show_discarded=False,
             show_failed=False,
+            ppf=constants.PPF,
             l_freq=constants.F_L,
             h_freq=constants.F_H,
             l_trans_bandwidth=constants.L_TRANS_BANDWIDTH,
@@ -781,11 +799,12 @@ class NIRS:
         Stages: CW     (raw signal)
                 CWx    (backlight removed raw signal)
                 OD     (optical density)
-                TDD    (motion artifact removal)
+                TDDR   (motion artifact removal)
+                SCI    (scalp coupling index)
                 AP     (autopick channels)
                 SSR    (short-channel regression)
                 HB     (chromophore/haemoglobin)
-                AP     (pick long channels, after saving short channels)
+                LS     (pick long channels, after saving short channels)
                 FL     (bandpass filtering)
                 NCE    (negative correlation improvement)
         """
@@ -803,6 +822,9 @@ class NIRS:
             # Motion artifact removal -- Temporal Derivative Distribution Repair (TDDR)
                 NIRS.wrap(mne.preprocessing.nirs.tddr)(execute=tddr),
                 NIRS.save(savepoints)('TDDR'),
+            # Pick only channels with high enough scalp coupling index
+                NIRS.wrap(NIRS.scalp_coupling_index)(threshold_sci, execute=scalp_coupling_index),
+                NIRS.save(savepoints)('SCI'),
             # Pick only channels with enough heart rate signal
                 NIRS.wrap(NIRS.autopick_channels)(l_heart_rate, h_heart_rate, threshold_heart_rate, n_fft, ma_size, preserve_pairs=preserve_pairs,
                                                   show_discarded=show_discarded, show_failed=show_failed, execute=autopick_channels),
@@ -873,7 +895,7 @@ class NIRS:
 
         return fig
 
-    def plot_boxcar(self, title='', fig=None, axs=None, **kwargs):
+    def plot_boxcar(self, title='', *, fig=None, axs=None, **kwargs):
         """Plot events in a boxcar plot."""
         if (fig is None) or (axs is None):
             fig, ax = plt.subplots(1, 1, figsize=(15, 6))
@@ -894,7 +916,7 @@ class NIRS:
         brain.add_sensors(self.raw.info, trans='fsaverage')
         brain.show_view(azimuth=90, elevation=90, distance=500)
 
-    def plot_average_heatmap(self, picks=None, exclude='bads', clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, fig=None, axs=None, **kwargs):
+    def plot_average_heatmap(self, picks=None, exclude='bads', clim={'hbo': [-10, 10], 'hbr': [-10, 10]}, *, fig=None, axs=None, **kwargs):
         """Plot heatmap of block averaged signals for all channels, for all cases."""
         if (fig is None) or (axs is None):
             fig, axs = plt.subplots(2, len(self.cases), figsize=(18, 6))
@@ -910,16 +932,51 @@ class NIRS:
         fig.suptitle("Block-Averaged Signals Across Trials for Channels and Number of Targets")
         return fig
 
-    def plot_average_waveform(self, fig=None, axs=None, **kwargs):
-        """Plot block averaged signals for the given channel type across for all channels and cases."""
-        if (fig is None) or (axs is None):
-            fig, axs = plt.subplots(len(self.s_d), len(self.cases), figsize=(20, 10), sharey=True, sharex=True)
+    def plot_average_waveform(self, picks=None, cases=None, separate_cases=False, *, fig=None, axs=None, sharex=True, sharey=True, **kwargs):
+        """Plot block averaged signals for given picks and cases."""
+        if cases is None:
+            cases = self.cases
 
-        for ax, event in zip(np.atleast_2d(axs.T), self.cases):
-            evoked = self.epochs[event].average(picks=ch_type)
-            for ax_i, ch_name in zip(ax, evoked.ch_names):
-                evoked.plot(picks=ch_name, show=False, axes=ax_i, **kwargs)
-                ax_i.set_title(f"{event} Targets | {utils.dec_to_hex([ch_name])[0]}")
+        s_d = utils.get_s_d(picks)
+
+        if (fig is None) or (axs is None):
+            if separate_cases:
+                fig, axs = plt.subplots(len(s_d), len(cases), figsize=(6 * len(cases), 3 * len(s_d)), sharey=sharey, sharex=sharex)
+            else:
+                fig, axs = plt.subplots(np.ceil(len(s_d)/3).astype(int), min(3, len(s_d)),
+                                        figsize=(6 * min(3, len(s_d)), 3 * np.ceil(len(s_d)/3)), sharey=sharey, sharex=sharex)   
+
+        if separate_cases:
+            for ax, case in zip(np.atleast_2d(axs.T), cases):
+                evoked = self.epochs[case].average(picks=picks)
+                for ax_i, s_d_i in zip(ax, s_d):
+                    ax_i.axvline(0, color='k', linestyle='--', alpha=0.5)
+                    for ch_type in constants.HB_CHANNEL_TYPES:
+                        color = 'r' if ch_type == 'hbo' else 'b' if ch_type == 'hbr' else 'g'
+                        if (ch_name := f'{s_d_i} {ch_type}') in picks:
+                            ax_i.plot(evoked.times, evoked.get_data(picks=ch_name).squeeze().T * 1e6, color=color)
+                            ax_i.plot(self.epochs.times, self.epochs[case].get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=0.1)
+                            ax_i.set_title(f"{case} Targets | {utils.dec_to_hex([s_d_i])[0]}")
+                            ax_i.set_xlabel("Times")
+                            ax_i.set_ylabel(r"$\mu M$")
+        else:
+            for ax in axs.ravel():
+                ax.axvline(0, color='k', linestyle='--', alpha=0.5)
+            for i, case in enumerate(cases):
+                evoked = self.epochs[case].average(picks=picks)
+                for ax_i, s_d_i in zip(axs.ravel(), s_d):
+                    for ch_type in constants.HB_CHANNEL_TYPES:
+                        color = 'r' if ch_type == 'hbo' else 'b' if ch_type == 'hbr' else 'g'
+                        if (ch_name := f'{s_d_i} {ch_type}') in picks:
+                            alpha = (i + 1)/(len(cases) + 1)
+                            label = case if ch_type == 'hbo' else None
+                            ax_i.plot(evoked.times, evoked.get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=alpha, label=label)
+                            # ax_i.plot(self.epochs.times, self.epochs[case].get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=0.2)
+                            ax_i.set_title(f"{utils.dec_to_hex([s_d_i])[0]}")
+                            ax_i.legend(loc='upper right')
+                            ax_i.set_title(utils.dec_to_hex([s_d_i])[0])
+                            ax_i.set_xlabel("Times")
+                            ax_i.set_ylabel(r"$\mu M$")
 
         return fig
 

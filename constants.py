@@ -37,6 +37,9 @@ LS_MAX_DIST = 0.10
 # If the PTP signal amplitude of any one channel exceeds the rejection threshold, the respective epoch will be dropped.
 REJECT_CRITERIA = None # {'hbo': 80e-6}
 
+# Threshold for Scalp Coupling Index
+THRESHOLD_SCI = 0.5
+
 # See recommendations by Pinti et. al. 2014
 # https://www.frontiersin.org/articles/10.3389/fnhum.2018.00505/full
 F_L = 0.01
