@@ -932,7 +932,7 @@ class NIRS:
         fig.suptitle("Block-Averaged Signals Across Trials for Channels and Number of Targets")
         return fig
 
-    def plot_average_waveform(self, picks=None, cases=None, separate_cases=False, *, fig=None, axs=None, sharex=True, sharey=True, **kwargs):
+    def plot_average_waveform(self, picks=None, cases=None, separate_cases=False, *, title_format_hex=True, fig=None, axs=None, sharex=True, sharey=True, **kwargs):
         """Plot block averaged signals for given picks and cases."""
         if cases is None:
             cases = self.cases
@@ -956,7 +956,7 @@ class NIRS:
                         if (ch_name := f'{s_d_i} {ch_type}') in picks:
                             ax_i.plot(evoked.times, evoked.get_data(picks=ch_name).squeeze().T * 1e6, color=color)
                             ax_i.plot(self.epochs.times, self.epochs[case].get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=0.1)
-                            ax_i.set_title(f"{case} Targets | {utils.dec_to_hex([s_d_i])[0]}")
+                            ax_i.set_title(f"{case} Targets | {utils.dec_to_hex([s_d_i])[0] if title_format_hex else s_d_i}")
                             ax_i.set_xlabel("Times")
                             ax_i.set_ylabel(r"$\mu M$")
         else:
@@ -972,9 +972,8 @@ class NIRS:
                             label = case if ch_type == 'hbo' else None
                             ax_i.plot(evoked.times, evoked.get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=alpha, label=label)
                             # ax_i.plot(self.epochs.times, self.epochs[case].get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=0.2)
-                            ax_i.set_title(f"{utils.dec_to_hex([s_d_i])[0]}")
+                            ax_i.set_title(f"{utils.dec_to_hex([s_d_i])[0] if title_format_hex else s_d_i}")
                             ax_i.legend(loc='upper right')
-                            ax_i.set_title(utils.dec_to_hex([s_d_i])[0])
                             ax_i.set_xlabel("Times")
                             ax_i.set_ylabel(r"$\mu M$")
 
