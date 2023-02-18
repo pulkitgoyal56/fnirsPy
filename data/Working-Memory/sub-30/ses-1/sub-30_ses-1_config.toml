@@ -1,0 +1,62 @@
+# Wavelengths to consider (can choose two -- limitation of MNE, see issue https://github.com/mne-tools/mne-python/issues/9816)
+WAVELENGTHS_PICKED = ['hbo', 'hbr'] # [774, 817, 865, 892]
+
+# Number of probes (optional)
+N_PROBES = 7
+
+# Number of hemispheres from which data is collected
+N_HEMISPHERES = 1
+
+# Type of Channels
+# str or list of size N_CHANNELS * N_WAVELENGTHS_T * N_HEMISPHERES
+# https://mne.tools/stable/glossary.html#term-data-channels
+CH_TYPES = 'hb' # 'hbo', 'hbr', 'fnirs_cw_amplitude', 'fnirs_fd_ac_amplitude', 'fnirs_fd_phase', 'fnirs_od'
+
+# Source-Detector pairs (names, all), in Hexadecimal
+# ['S1_D3', 'S5_D3', 'S5_D7', 'S2_D7', 'S2_D4', 'S6_D4', 'S6_D8', 'S1_D1', 'S3_D3', 'S5_D5', 'S7_D7', 'S2_D2', 'S4_D4', 'S6_D6', 'S8_D8', 'S3_D1', 'S3_D5', 'S7_D5', 'S7_D2', 'S4_D2', 'S4_D6', 'S8_D6'] # Hexadecimal/Decimal
+S_D = [
+    'S1_D3',
+    'S5_D3',
+    'S5_D7',
+    'S2_D7',
+    'S2_D4',
+    'S6_D4',
+    'S6_D8',
+    'S1_D1',
+    'S3_D3',
+    'S5_D5',
+    'S7_D7',
+    'S2_D2',
+    'S4_D4',
+    'S6_D6',
+    'S8_D8',
+    'S3_D1',
+    'S3_D5',
+    'S7_D5',
+    'S7_D2',
+    'S4_D2',
+    'S4_D6',
+    'S8_D6'
+ ]
+
+# Unused Channels (indices)
+S_D_UNUSED = []
+
+# Coordinate frame of the optode locations.
+# Valid coordinate frames are 'meg', 'mri', 'mri_voxel', 'head', 'mri_tal', 'ras', 'fs_tal', 'ctf_head', 'ctf_meg', 'unknown'.
+COORD_FRAME = 'unknown'
+
+# Head Size (radius), in m
+# < 0.1262
+HEAD_SIZE = 0.11
+
+# Time of start of experiment, in s
+T_EXP_START = 0 # -0.1
+
+# Start and end time of the epochs in seconds, relative to the time-locked event, in s
+T_EPOCH_START = -5
+T_EPOCH_END = 15
+
+# Start and end time of the baseline in seconds, relative to the time-locked event, in s
+T_BASELINE_START = -0.01
+T_BASELINE_END = 0
