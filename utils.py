@@ -114,7 +114,7 @@ def is_channel_type(ch_type, ch_name):
     bool
         True if channel is of given type.
     """
-    return re.compile(fr'S\d+_D\d+ {ch_type}').match(ch_name)
+    return bool(re.compile(fr'S\d+_D\d+ {ch_type}').match(ch_name))
 
 def find_short_channels(ch_names):
     """Find short channels from names.

@@ -13,7 +13,7 @@ N_HEMISPHERES = 1
 CH_TYPES = 'hb' # 'hbo', 'hbr', 'fnirs_cw_amplitude', 'fnirs_fd_ac_amplitude', 'fnirs_fd_phase', 'fnirs_od'
 
 # Source-Detector pairs (names, all), in Hexadecimal
-# ['S1_D3', 'S5_D3', 'S5_D7', 'S2_D7', 'S2_D4', 'S6_D4', 'S6_D8', 'S1_D1', 'S3_D3', 'S5_D5', 'S7_D7', 'S2_D2', 'S4_D4', 'S6_D6', 'S8_D8', 'S3_D1', 'S3_D5', 'S7_D5', 'S7_D2', 'S4_D2', 'S4_D6', 'S8_D6'] # Hexadecimal/Decimal
+# (1,3)(5,3)(5,7)(2,7)(2,4)(6,4)(6,8)(1,1)(3,3)(5,5)(7,7)(2,2)(4,4)(6,6)(8,8)(3,1)(3,5)(7,5)(7,2)(4,2)(4,6)(8,6) # Hexadecimal/Decimal
 S_D = [
     'S1_D3',
     'S5_D3',
@@ -37,7 +37,7 @@ S_D = [
     'S4_D2',
     'S4_D6',
     'S8_D6'
- ]
+]
 
 # Unused Channels (indices)
 S_D_UNUSED = []

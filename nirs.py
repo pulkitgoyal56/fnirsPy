@@ -342,7 +342,7 @@ class NIRS:
 
         # Create Numpy Array from the corrected DataFrame and reshape it to have rows corresponding to time-warying signal for all channel and picked wavelength combinations
         # 'n_channels = n_s_d x n_wavelengths' rows; each corresponding in order to `CH_NAMES`
-        data_np = (np.array(data_pd[[f'{wavelength}[nm]' for wavelength in self.WAVELENGTHS] if self.CONFIG['CH_TYPES'] != 'hb' else self.WAVELENGTHS])
+        data_np = (data_pd[[f'{wavelength}[nm]' for wavelength in self.WAVELENGTHS] if self.CONFIG['CH_TYPES'] != 'hb' else self.WAVELENGTHS].to_numpy()
                    .reshape(-1, len(self.S_D_USED) * len(self.WAVELENGTHS)).T)
 
         # Create mne.raw object
@@ -933,8 +933,8 @@ class NIRS:
         for ax, event in zip(np.atleast_2d(axs.T), self.cases):
             self.epochs[event].average().plot_image(picks=picks, exclude=exclude, axes=ax, clim=clim, show=False)
             ax[0].set_xlabel(None)
-            ax[0].set_title(f"{event} Targets | HbO")
-            ax[1].set_title(f"{event} Targets | HbR")
+            ax[0].set_title(f"{event} Load | HbO")
+            ax[1].set_title(f"{event} Load | HbR")
             for ax_i in ax:
                 ax_i.axvline(0, c='k', ls='--', lw=0.9)
 
@@ -976,7 +976,7 @@ class NIRS:
                                 ax_i.plot(self.epochs.times,
                                           (self.epochs[case].get_data(picks=ch_name).squeeze() - (evoked_reference.get_data(picks=ch_name).squeeze() if contrast_reference else 0)).T * 1e6,
                                           color=color, alpha=0.1)
-                            ax_i.set_title(f"{case} Targets | {utils.dec_to_hex([s_d_i])[0] if title_format_hex else s_d_i}")
+                            ax_i.set_title(f"{case} Load | {utils.dec_to_hex([s_d_i])[0] if title_format_hex else s_d_i}")
                             ax_i.set_xlabel("Times")
                             ax_i.set_ylabel(r"$\mu M$")
         else:
