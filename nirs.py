@@ -989,7 +989,7 @@ class NIRS:
                         color = 'r' if ch_type == 'hbo' else 'b' if ch_type == 'hbr' else 'g'
                         if (ch_name := f'{s_d_i} {ch_type}') in picks:
                             alpha = (i + 1)/(len(cases) + 1)
-                            label = case if ch_type == 'hbo' else None
+                            label = f"{case}{f' - {contrast_reference}' if contrast_reference else ''}" if ch_type == 'hbo' or len(cases) == 1 else None
                             ax_i.plot(evoked.times,
                                       (evoked.get_data(picks=ch_name).squeeze().T - (evoked_reference.get_data(picks=ch_name).squeeze().T if contrast_reference else 0)) * 1e6,
                                       color=color, alpha=alpha, label=label)
