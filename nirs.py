@@ -264,7 +264,9 @@ class NIRS:
         data_pd = pd.read_csv(self.raw_file_path)
 
         # Wavelengths available (automatic extraction)
-        self.wavelengths = self.WAVELENGTHS = [int(match.groups()[0]) for column in data_pd.columns if (match := re.compile(r'(\d+)\[nm\]').match(column))]
+        self.wavelengths = self.WAVELENGTHS = [match.groups()[0] if self.CONFIG['CH_TYPES'] == 'hb' else int(match.groups()[0])
+                                               for column in data_pd.columns
+                                               if (match := re.compile('(hb[or])' if self.CONFIG['CH_TYPES'] == 'hb' else '(\d+)\[nm\]').match(column))]
 
         # # Number of probes
         # self.M_PROBES = int(self.CONFIG['N_PROBES']) # per hemisphere
@@ -305,7 +307,8 @@ class NIRS:
         self.F_S = len(data_pd)/len(self.S_D_USED)/self.T_REC_END    # fNIRS recording frequency, in Hertz
 
         # Create mne.Info Object
-        info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=self.CONFIG['CH_TYPES'])
+        ch_types = list(np.tile(self.WAVELENGTHS, len(self.S_D_USED))) if self.CONFIG['CH_TYPES'] == 'hb' else self.CONFIG['CH_TYPES']
+        info_csv = mne.create_info(ch_names=self.CH_NAMES, sfreq=self.F_S, ch_types=ch_types)
 
         # `Manually update info object parameters for location`
         # > Manual modification is not recommended, but there doesn't seem to any other option as there are no inbuilt functions for this.
@@ -321,7 +324,8 @@ class NIRS:
         for chs in info_csv['chs']:
             # For fNIRS, the 10th element corresponds to the wavelength
             # https://github.com/mne-tools/mne-python/blob/main/mne/preprocessing/nirs/nirs.py#L150
-            chs['loc'][9] = float(chs['ch_name'].split()[1])
+            if self.CONFIG['CH_TYPES'] != 'hb':
+                chs['loc'][9] = float(chs['ch_name'].split()[1])
 
         for chs in info_csv['chs']:
             # For fNIRS, the 12th element is the channel separation
@@ -338,7 +342,8 @@ class NIRS:
 
         # Create Numpy Array from the corrected DataFrame and reshape it to have rows corresponding to time-warying signal for all channel and picked wavelength combinations
         # 'n_channels = n_s_d x n_wavelengths' rows; each corresponding in order to `CH_NAMES`
-        data_np = np.array(data_pd[data_pd.columns[-len(self.WAVELENGTHS):]]).reshape(-1, len(self.S_D_USED) * len(self.WAVELENGTHS)).T
+        data_np = (np.array(data_pd[[f'{wavelength}[nm]' for wavelength in self.WAVELENGTHS] if self.CONFIG['CH_TYPES'] != 'hb' else self.WAVELENGTHS])
+                   .reshape(-1, len(self.S_D_USED) * len(self.WAVELENGTHS)).T)
 
         # Create mne.raw object
         self.raw = mne.io.RawArray(data_np, info_csv)
@@ -456,11 +461,11 @@ class NIRS:
 
             # Create dictionary of all the durations of a trial
             self.DUR = pd.Series({
-                'target': 1.0,                                                   # <ti.ms> -- memory set
-                'motion': 6.0,                                                   # <ti.mi> -- maintainance interval
-                'probe': 1.0,                                                    # <ti.mp> -- memory probe
-                'feedb': 5.0,                                                    # <ti.ri> -- response interval
-                'wait': 1.0,                                                     # <ti.ti> -- inter trial interval
+                'target': 0.0,                                                   # <ti.ms> -- memory set
+                'motion': 10.0,                                                   # <ti.mi> -- maintainance interval
+                'probe': 0.0,                                                    # <ti.mp> -- memory probe
+                'feedb': 0.0,                                                    # <ti.ri> -- response interval
+                'wait': 0.0,                                                     # <ti.ti> -- inter trial interval
             })
             self.DUR['trial'] = sum(self.DUR)
             self.F_E = 1/self.DUR['trial']
@@ -485,7 +490,7 @@ class NIRS:
             self.raw.set_annotations(mne.Annotations(
                 onset=self.mat['onsets'], # - self.T_REC_START
                 duration=self.DUR['motion'],
-                description=('LOW', 'HIGH')[int(np.unique(self.mat['condition'])) - 1]  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
+                description=['HIGH' if condition >= 2 else 'LOW' for condition in self.mat['condition']]  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
             ))
 
         # Extract events of interest
@@ -523,7 +528,8 @@ class NIRS:
 
         # Picking wavelengths is required because MNE does not support more than two wavelengths.
         # An error will be raised when setting the montage if more than two wavelengths are used.
-        self.pick_wavelengths(**kwargs)
+        if self.CONFIG['CH_TYPES'] != 'hb':
+            self.pick_wavelengths(**kwargs)
 
         # montage.plot()
         self.montage = montage
