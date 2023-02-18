@@ -649,7 +649,10 @@ class NIRS:
 
     def save_short_channels(self, max_dist=constants.SS_MAX_DIST):
         """Initialize member storing short channel mne.raw instance."""
-        self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
+        if not max_dist:
+            self.raw_ss = self.raw.copy().drop_channels(utils.find_long_channels(self.raw.ch_names)[0])
+        else:
+            self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
     def scalp_coupling_index(raw, threshold=constants.THRESHOLD_SCI, *, plot_sci_drops=False):
         """Pick only channels with scalp coupling index above given threshold."""
