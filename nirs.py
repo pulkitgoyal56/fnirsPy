@@ -935,10 +935,13 @@ class NIRS:
         fig.suptitle("Block-Averaged Signals Across Trials for Channels and Number of Targets")
         return fig
 
-    def plot_average_waveform(self, picks=None, cases=None, separate_cases=False, *, title_format_hex=True, fig=None, axs=None, sharex=True, sharey=True, **kwargs):
+    def plot_average_waveform(self, picks=None, cases=None, ch_types=None, contrast_reference=None, separate_cases=False, plot_individual_epochs=False, *, title_format_hex=True, fig=None, axs=None, sharex=True, sharey=True, **kwargs):
         """Plot block averaged signals for given picks and cases."""
         if cases is None:
             cases = self.cases
+
+        if ch_types is None:
+            ch_types = constants.HB_CHANNEL_TYPES
 
         s_d = utils.get_s_d(picks)
 
@@ -947,18 +950,26 @@ class NIRS:
                 fig, axs = plt.subplots(len(s_d), len(cases), figsize=(6 * len(cases), 3 * len(s_d)), sharey=sharey, sharex=sharex)
             else:
                 fig, axs = plt.subplots(np.ceil(len(s_d)/3).astype(int), min(3, len(s_d)),
-                                        figsize=(6 * min(3, len(s_d)), 3 * np.ceil(len(s_d)/3)), sharey=sharey, sharex=sharex)   
+                                        figsize=(6 * min(3, len(s_d)), 3 * np.ceil(len(s_d)/3)), sharey=sharey, sharex=sharex)
+
+        if contrast_reference:
+            evoked_reference = self.epochs[contrast_reference].average(picks=picks)
 
         if separate_cases:
             for ax, case in zip(np.atleast_2d(axs.T), cases):
                 evoked = self.epochs[case].average(picks=picks)
                 for ax_i, s_d_i in zip(ax, s_d):
                     ax_i.axvline(0, color='k', linestyle='--', alpha=0.5)
-                    for ch_type in constants.HB_CHANNEL_TYPES:
+                    for ch_type in ch_types:
                         color = 'r' if ch_type == 'hbo' else 'b' if ch_type == 'hbr' else 'g'
                         if (ch_name := f'{s_d_i} {ch_type}') in picks:
-                            ax_i.plot(evoked.times, evoked.get_data(picks=ch_name).squeeze().T * 1e6, color=color)
-                            ax_i.plot(self.epochs.times, self.epochs[case].get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=0.1)
+                            ax_i.plot(evoked.times,
+                                      (evoked.get_data(picks=ch_name).squeeze() - (evoked_reference.get_data(picks=ch_name).squeeze() if contrast_reference else 0)).T * 1e6,
+                                      color=color)
+                            if plot_individual_epochs:
+                                ax_i.plot(self.epochs.times,
+                                          (self.epochs[case].get_data(picks=ch_name).squeeze() - (evoked_reference.get_data(picks=ch_name).squeeze() if contrast_reference else 0)).T * 1e6,
+                                          color=color, alpha=0.1)
                             ax_i.set_title(f"{case} Targets | {utils.dec_to_hex([s_d_i])[0] if title_format_hex else s_d_i}")
                             ax_i.set_xlabel("Times")
                             ax_i.set_ylabel(r"$\mu M$")
@@ -968,13 +979,18 @@ class NIRS:
             for i, case in enumerate(cases):
                 evoked = self.epochs[case].average(picks=picks)
                 for ax_i, s_d_i in zip(axs.ravel(), s_d):
-                    for ch_type in constants.HB_CHANNEL_TYPES:
+                    for ch_type in ch_types:
                         color = 'r' if ch_type == 'hbo' else 'b' if ch_type == 'hbr' else 'g'
                         if (ch_name := f'{s_d_i} {ch_type}') in picks:
                             alpha = (i + 1)/(len(cases) + 1)
                             label = case if ch_type == 'hbo' else None
-                            ax_i.plot(evoked.times, evoked.get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=alpha, label=label)
-                            # ax_i.plot(self.epochs.times, self.epochs[case].get_data(picks=ch_name).squeeze().T * 1e6, color=color, alpha=0.2)
+                            ax_i.plot(evoked.times,
+                                      (evoked.get_data(picks=ch_name).squeeze().T - (evoked_reference.get_data(picks=ch_name).squeeze().T if contrast_reference else 0)) * 1e6,
+                                      color=color, alpha=alpha, label=label)
+                            if plot_individual_epochs:
+                                ax_i.plot(self.epochs.times,
+                                          (self.epochs[case].get_data(picks=ch_name).squeeze() - (evoked_reference.get_data(picks=ch_name).squeeze() if contrast_reference else 0)).T * 1e6,
+                                          color=color, alpha=0.2)
                             ax_i.set_title(f"{utils.dec_to_hex([s_d_i])[0] if title_format_hex else s_d_i}")
                             ax_i.legend(loc='upper right')
                             ax_i.set_xlabel("Times")
