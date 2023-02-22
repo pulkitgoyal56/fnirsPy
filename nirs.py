@@ -125,7 +125,7 @@ class NIRS:
                 combined_nirs.T_EXP_END += nirs.DUR['exp']
 
         if hasattr(self, 'mat') and hasattr(nirs, 'mat'):
-            combined_nirs.mat = pd.concat([self.mat, nirs.mat])
+            combined_nirs.mat = [self.mat, nirs.mat] # pd.concat([self.mat, nirs.mat])
 
         return combined_nirs
 
