@@ -21,6 +21,7 @@ import pathlib
 # Additional Inbuilt Utilities
 import itertools
 import functools
+import copy
 
 # Regex
 import re
@@ -87,6 +88,25 @@ class NIRS:
         if value is not None:
             self.__setattr__(attribute, value)
         return self.__getattribute__(attribute)
+
+    def __add__(self, nirs):
+        combined_nirs = copy.deepcopy(self)
+
+        self_raw = self.raw.copy()
+        nirs_raw = nirs.raw.copy()
+
+        combined_nirs.raw.info['bads'] = self_raw.info['bads'] = nirs_raw.info['bads'] = list(set(self.raw.info['bads'] + nirs.raw.info['bads']))
+
+        mne.concatenate_raws([combined_nirs.raw, nirs_raw])
+        combined_nirs.raw.annotations.delete(np.isin(combined_nirs.raw.annotations.description, ['BAD boundary', 'EDGE boundary']).nonzero()[0])
+
+        if hasattr(self, 'event_dict') and hasattr(nirs, 'event_dict'):
+            combined_nirs.event_dict.update(nirs.event_dict)
+
+        if hasattr(self, 'events') and hasattr(self, 'events'):
+            combined_nirs.events = np.r_[self.events, nirs.events + [len(self.raw), 0, 0]]
+
+        return combined_nirs
 
     def pick_wavelengths(self, wavelengths_picked=None, **kwargs):
         """Pick wavelengths."""
@@ -462,7 +482,7 @@ class NIRS:
             # Create dictionary of all the durations of a trial
             self.DUR = pd.Series({
                 'target': 0.0,                                                   # <ti.ms> -- memory set
-                'motion': 10.0,                                                   # <ti.mi> -- maintainance interval
+                'motion': 10.0,                                                  # <ti.mi> -- maintainance interval
                 'probe': 0.0,                                                    # <ti.mp> -- memory probe
                 'feedb': 0.0,                                                    # <ti.ri> -- response interval
                 'wait': 0.0,                                                     # <ti.ti> -- inter trial interval
@@ -492,12 +512,6 @@ class NIRS:
                 duration=self.DUR['motion'],
                 description=['HIGH' if condition >= 2 else 'LOW' for condition in self.mat['condition']]  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
             ))
-
-        # Extract events of interest
-        self.events, self.event_dict = mne.events_from_annotations(self.raw)
-        self.cases = list(self.event_dict)
-
-        return self.events, self.event_dict
 
     def read_montage(self, montage_file_path, *, augment=True, transform=True, reference_locations=constants.DEFAULT_REFERENCE_LOCATIONS, reference=constants.DEFAULT_REFERENCE, **kwargs):
         """Read location data."""
@@ -535,6 +549,13 @@ class NIRS:
         self.montage = montage
         self.raw.set_montage(self.montage)
 
+    def extract_events(self):
+        """Extract events of interest."""
+        self.events, self.event_dict = mne.events_from_annotations(self.raw)
+        self.cases = list(self.event_dict)
+
+        return self.events, self.event_dict
+
     def read(self, subject_id, session, run, **kwargs):
         """Read subject/session/run data; set annotations and set montage."""
         base_dir = pathlib.Path(self._DATA_DIR, self._PROJECT, f'sub-{subject_id}', f'ses-{session}')
@@ -548,6 +569,7 @@ class NIRS:
         self.read_raw(raw_file_path, **kwargs)
         self.read_annotation(annotation_file_path, **kwargs)
         self.read_montage(montage_file_path, **kwargs)
+        self.extract_events()
 
         return self
 
@@ -585,7 +607,8 @@ class NIRS:
         tmin = self.__attr('T_EPOCH_START', tmin)
         tmax = self.__attr('T_EPOCH_END', tmax)
 
-        baseline = (self.__attr('T_BASELINE_START', baseline[0]), self.__attr('T_BASELINE_END', baseline[1]))
+        if baseline:
+            baseline = (self.__attr('T_BASELINE_START', baseline[0]), self.__attr('T_BASELINE_END', baseline[1]))
 
         self.reject_criteria = reject_criteria
 
@@ -744,7 +767,7 @@ class NIRS:
                 case False:
                     discards = discards.union(utils.find_ch_pairs(psd.ch_names, discards))
                 case True:
-                    discards -= set(utils.find_ch_unpaired(discards, psd.ch_names))
+                    discards = set(utils.find_ch_paired(discards, psd.ch_names))
                 case None:
                     pass
 
@@ -886,11 +909,11 @@ class NIRS:
         if duration is None:
             duration = self.DUR['exp']/3
 
-        self.raw.plot(show_scrollbars=False, duration=duration, **kwargs)
+        return self.raw.plot(show_scrollbars=False, duration=duration, **kwargs)
 
     def plot_psd(self, n_fft=None, ma_size=constants.MA_SIZE, average=False, title="", **kwargs):
         """View power spectral densities of the signals."""
-        fig = self.get_psd(n_fft, ma_size).plot(average=average, **kwargs)
+        fig = self.get_psd(n_fft, ma_size, **kwargs).plot(average=average)
         fig.suptitle(title)
         fig.subplots_adjust(top=0.88)
 

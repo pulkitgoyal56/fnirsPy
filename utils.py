@@ -243,8 +243,8 @@ def find_ch_pairs(ch_names, channels):
 
     return [ch if id else ch_name for ch, ch_name in enumerate(ch_names) if ch_name not in channels and get_s_d([ch_name])[0] in get_s_d(channels)]
 
-def find_ch_unpaired(channels, ch_names=None):
-    """Find the channels that are not paired.
+def find_ch_paired(channels, ch_names=None):
+    """Find the channels that are paired.
 
     Parameters
     ----------
@@ -266,7 +266,8 @@ def find_ch_unpaired(channels, ch_names=None):
         case str():
             id = False
 
-    return [ch_names.index(ch_name) if id else ch_name for ch_name in channels if Counter(map(lambda ch_name: ch_name.split()[0], channels))[get_s_d([ch_name])[0]] == 1]
+    counts = Counter(map(lambda ch_name: get_s_d([ch_name])[0], channels))
+    return [ch_names.index(ch_name) if id else ch_name for ch_name in channels if counts[get_s_d([ch_name])[0]] == 2]
 
 def has_location(source, pos):
     match source:
