@@ -102,9 +102,17 @@ class NIRS:
 
         if hasattr(self, 'event_dict') and hasattr(nirs, 'event_dict'):
             combined_nirs.event_dict.update(nirs.event_dict)
+            combined_nirs.cases = list(combined_nirs.event_dict)
+        elif hasattr(self, 'cases') and hasattr(nirs, 'cases'):
+            combined_nirs.cases = list(set(self.cases + nirs.cases))
 
         if hasattr(self, 'events') and hasattr(self, 'events'):
             combined_nirs.events = np.r_[self.events, nirs.events + [len(self.raw), 0, 0]]
+
+        if hasattr(self, 'epochs') or hasattr(nirs, 'epochs'):
+            combined_nirs.get_epochs()
+            if hasattr(self, 'evoked_dict') or hasattr(nirs, 'evoked_dict'):
+                combined_nirs.block_average()
 
         return combined_nirs
 
