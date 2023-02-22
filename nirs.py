@@ -114,6 +114,19 @@ class NIRS:
             if hasattr(self, 'evoked_dict') or hasattr(nirs, 'evoked_dict'):
                 combined_nirs.block_average()
 
+        if hasattr(self, 'DUR') and hasattr(nirs, 'DUR'):
+            combined_nirs.DUR['rec'] += nirs.DUR['rec']
+            combined_nirs.DUR['exp'] += nirs.DUR['exp']
+
+            if hasattr(self, 'T_REC_END') and hasattr(nirs, 'T_REC_END'):
+                combined_nirs.T_REC_END += nirs.DUR['rec']
+
+            if hasattr(self, 'T_EXP_END') and hasattr(nirs, 'T_EXP_END'):
+                combined_nirs.T_EXP_END += nirs.DUR['exp']
+
+        if hasattr(self, 'mat') and hasattr(nirs, 'mat'):
+            combined_nirs.mat = pd.concat([self.mat, nirs.mat])
+
         return combined_nirs
 
     def pick_wavelengths(self, wavelengths_picked=None, **kwargs):
