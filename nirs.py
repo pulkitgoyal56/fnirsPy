@@ -95,7 +95,7 @@ class NIRS:
         self_raw = self.raw.copy()
         nirs_raw = nirs.raw.copy()
 
-        combined_nirs.raw.info['bads'] = self_raw.info['bads'] = nirs_raw.info['bads'] = list(set(self.raw.info['bads'] + nirs.raw.info['bads']))
+        combined_nirs.raw.info['bads'] = self_raw.info['bads'] = nirs_raw.info['bads'] = list(set(self.raw.info['bads']).intersection(set(nirs.raw.info['bads'])))
 
         mne.concatenate_raws([combined_nirs.raw, nirs_raw])
         combined_nirs.raw.annotations.delete(np.isin(combined_nirs.raw.annotations.description, ['BAD boundary', 'EDGE boundary']).nonzero()[0])
@@ -886,7 +886,7 @@ class NIRS:
                 NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.SS_MAX_DIST, execute=short_channel_regression),
                 NIRS.save(savepoints)('SSR'),
             # Optical Densities -> HbO and HbR concentrations -- Modified Beer Lambert Law (MBLL)
-                # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law, ppf=0.1),
+                # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law)(ppf=self.__attr('PPF', 0.1)),
                 NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=self.__attr('PPF', ppf)),
                 NIRS.save(savepoints)('HB'),
             # Pick long channels
