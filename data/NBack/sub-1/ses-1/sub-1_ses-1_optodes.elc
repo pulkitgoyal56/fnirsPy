@@ -1,0 +1,46 @@
+# ASA electrode file
+ReferenceLabel	avg
+UnitPosition	mm
+NumberPositions=	20
+Positions
+120.165	23.944	-78.568     # Nz
+133.365	114.578	-165.883    # LPA
+6.783	75.744	-102.567    # RPA
+    # Cz  (82.09	169.94	-177.51)
+    # S56
+    # D56
+    # S58
+    # D58
+    # S59
+    # D59
+    # S65
+    # D65
+    # S69
+    # D69
+    # S70
+    # D70
+    # S71
+    # D71
+    # S72
+    # D72
+Labels
+Nz
+LPA
+RPA
+Cz
+S56
+D56
+S58
+D58
+S59
+D59
+S65
+D65
+S69
+D69
+S70
+D70
+S71
+D71
+S72
+D72

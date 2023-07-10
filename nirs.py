@@ -534,6 +534,56 @@ class NIRS:
                 description=['HIGH' if condition >= 2 else 'LOW' for condition in self.mat['condition']]  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
             ))
 
+        elif self._PROJECT == 'NBack':
+            # `Stages of the experiment`
+            # > *\<exp\>* → **\[ *\<tri\>* → *\<ti.ms\>* → *\<ti.mi\>* → *\<ti.mp\>* → *\<ti.ri\>* → *\<ti.iti\>* → {data_write()} \]** → *\<expEnd\>*
+            # > *`T_REC_START`* ------ *`T_EXP_START`* == *0* ------------------------------------------------------------ *`T_EXP_END`* ------ *`T_REC_END`*
+
+            # Load Experiment Results
+            self.annotation_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_annotations').with_suffix('.txt')
+            # self.mat = pd.DataFrame(sc.io.loadmat(self.annotation_file_path)['onsets'], columns=[
+            #     'onsets',                # 0     # <>                            # onsets
+            #     'condition'              # 1     # <>                            # load condition
+            # ])
+            self.mat = pd.read_csv(self.annotation_file_path, skiprows=3, names=[
+                'onsets',                # 0     # <>                            # onsets
+                'duration',              # 1     # <>                            # onsets
+                'condition'              # 2     # <>                            # load condition
+            ])
+            
+            # Create dictionary of all the durations of a trial
+            self.DUR = pd.Series({
+                'condition': 5.0,                                                # condition info
+                'nback': 60.0,                                                   # task
+                'rest': 15.0,                                                    # inter trial interval
+            })
+            self.DUR['trial'] = sum(self.DUR)
+            self.F_E = 1/self.DUR['trial']
+
+            # Read experiment end time, relative to its start time, vis-à-vis its duration
+            # endtime_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_endtime').with_suffix('.mat')
+            # self.DUR['exp'] = float(sc.io.loadmat(endtime_file_path)['expEnd'])  # <expEnd - exp> -- duration of the entire experiment, in seconds
+            self.DUR['exp'] = self.mat.iloc[-1]['onsets'] + self.mat.iloc[-1]['duration']
+
+            # Set the duration of the recording
+            self.DUR['rec'] = self.T_REC_END     # - self.T_REC_START            # recording duration, in seconds
+
+            # Read experiment end time and set start time
+            # self.T_EXP_START = 0               # <exp>                         # experiment start time, in seconds; offset due to trigger delay, in seconds
+            self.T_EXP_END = self.T_EXP_START + self.DUR['exp']                  # experiment end time, in seconds
+
+            # There could be time differences in the fNIRS recordings and experiment, due to fast/slow clocks of the device.
+            # This can be corrected by scaling the recording times and frequencies by a correction factor.
+            # The correction factor is greater than 1 if `DUR['rec']` > `DUR['exp']`, and vice versa.
+            self.correct_time(**kwargs)
+
+            # Set annotations in the Raw object
+            self.raw.set_annotations(mne.Annotations(
+                onset=self.mat['onsets'], # - self.T_REC_START
+                duration=self.mat['duration'],
+                description=self.mat['condition']  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
+            ))
+
     def read_montage(self, montage_file_path, *, augment=True, transform=True, reference_locations=constants.DEFAULT_REFERENCE_LOCATIONS, reference=constants.DEFAULT_REFERENCE, **kwargs):
         """Read location data."""
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')

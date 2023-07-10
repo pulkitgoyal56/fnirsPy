@@ -1,0 +1,105 @@
+# Wavelengths to consider (can choose two -- limitation of MNE, see issue https://github.com/mne-tools/mne-python/issues/9816)
+WAVELENGTHS_PICKED = [735, 850] # [735, 810, 850]
+
+# Number of probes (optional)
+N_PROBES = 8
+
+# Number of hemispheres from which data is collected
+N_HEMISPHERES = 1
+
+# Type of Channels
+# str or list of size N_CHANNELS * N_WAVELENGTHS_T * N_HEMISPHERES
+# https://mne.tools/stable/glossary.html#term-data-channels
+CH_TYPES = 'fnirs_cw_amplitude' # 'hbo', 'hbr', 'fnirs_cw_amplitude', 'fnirs_fd_ac_amplitude', 'fnirs_fd_phase', 'fnirs_od'
+
+# Source-Detector pairs (names, all), in Hexadecimal
+# ['S21_D21', 'S21_D22', 'S21_D27', 'S21_D28', 'S21_D29', 'S21_D2B', 'S21_D2C', 'S22_D21', 'S22_D22', 'S22_D27', 'S22_D28', 'S22_D29', 'S22_D2B', 'S22_D2C', 'S27_D21', 'S27_D22', 'S27_D27', 'S27_D28', 'S27_D29', 'S27_D2B', 'S27_D2C', 'S28_D21', 'S28_D22', 'S28_D27', 'S28_D28', 'S28_D29', 'S28_D2B', 'S28_D2C', 'S29_D21', 'S29_D22', 'S29_D27', 'S29_D28', 'S29_D29', 'S29_D2B', 'S29_D2C', 'S2B_D21', 'S2B_D22', 'S2B_D27', 'S2B_D28', 'S2B_D29', 'S2B_D2B', 'S2B_D2C', 'S2C_D21', 'S2C_D22', 'S2C_D27', 'S2C_D28', 'S2C_D29', 'S2C_D2B', 'S2C_D2C'] # Hexadecimal
+# ['S33_D33', 'S33_D34', 'S33_D39', 'S33_D40', 'S33_D41', 'S33_D43', 'S33_D44', 'S34_D33', 'S34_D34', 'S34_D39', 'S34_D40', 'S34_D41', 'S34_D43', 'S34_D44', 'S39_D33', 'S39_D34', 'S39_D39', 'S39_D40', 'S39_D41', 'S39_D43', 'S39_D44', 'S40_D33', 'S40_D34', 'S40_D39', 'S40_D40', 'S40_D41', 'S40_D43', 'S40_D44', 'S41_D33', 'S41_D34', 'S41_D39', 'S41_D40', 'S41_D41', 'S41_D43', 'S41_D44', 'S43_D33', 'S43_D34', 'S43_D39', 'S43_D40', 'S43_D41', 'S43_D43', 'S43_D44', 'S44_D33', 'S44_D34', 'S44_D39', 'S44_D40', 'S44_D41', 'S44_D43', 'S44_D44'] # Decimal
+S_D = [
+    'S56_D56',
+    'S56_D58',
+    'S56_D59',
+    'S56_D65',
+    'S56_D69',
+    'S56_D70',
+    'S56_D71',
+    'S56_D72',
+    'S58_D56',
+    'S58_D58',
+    'S58_D59',
+    'S58_D65',
+    'S58_D69',
+    'S58_D70',
+    'S58_D71',
+    'S58_D72',
+    'S59_D56',
+    'S59_D58',
+    'S59_D59',
+    'S59_D65',
+    'S59_D69',
+    'S59_D70',
+    'S59_D71',
+    'S59_D72',
+    'S65_D56',
+    'S65_D58',
+    'S65_D59',
+    'S65_D65',
+    'S65_D69',
+    'S65_D70',
+    'S65_D71',
+    'S65_D72',
+    'S69_D56',
+    'S69_D58',
+    'S69_D59',
+    'S69_D65',
+    'S69_D69',
+    'S69_D70',
+    'S69_D71',
+    'S69_D72',
+    'S70_D56',
+    'S70_D58',
+    'S70_D59',
+    'S70_D65',
+    'S70_D69',
+    'S70_D70',
+    'S70_D71',
+    'S70_D72',
+    'S71_D56',
+    'S71_D58',
+    'S71_D59',
+    'S71_D65',
+    'S71_D69',
+    'S71_D70',
+    'S71_D71',
+    'S71_D72',
+    'S72_D56',
+    'S72_D58',
+    'S72_D59',
+    'S72_D65',
+    'S72_D69',
+    'S72_D70',
+    'S72_D71',
+    'S72_D72'
+]
+
+# Unused Channels (indices)
+S_D_UNUSED = [7, 15, 23, 31, 39, 47, 55, 56, 57, 58, 59, 60, 61, 62, 63] # {72 (x48)}
+
+# Coordinate frame of the optode locations.
+# Valid coordinate frames are 'meg', 'mri', 'mri_voxel', 'head', 'mri_tal', 'ras', 'fs_tal', 'ctf_head', 'ctf_meg', 'unknown'.
+COORD_FRAME = 'unknown'
+
+# Head Size (radius), in m
+# < 0.1262
+HEAD_SIZE = 0.095
+
+# Time of start of experiment, in s
+T_EXP_START = 0 # -0.1
+
+# Start and end time of the epochs in seconds, relative to the time-locked event, in s
+T_EPOCH_START = -5
+T_EPOCH_END = 15
+
+# Start and end time of the baseline in seconds, relative to the time-locked event, in s
+T_BASELINE_START = -5
+T_BASELINE_END = 0
