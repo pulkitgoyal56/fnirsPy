@@ -9,7 +9,7 @@ dependencies:
   - pandas
   - mat73
   - matplotlib
-  - jupyter
+  - jupyterlab
   - ipympl
   - statsmodels
   - tomli
