@@ -62,10 +62,12 @@ HB_CHANNEL_TYPES = ['hbo', 'hbr']
 # See - https://github.com/mne-tools/mne-python/pull/9843
 PVC = 60 # 1 # Partial Volume Correction
 PPF = {
+    735: 6.18052629 / PVC,
     770: 6.18052629 / PVC,
     774: 6.18052629 / PVC,
     810: 5.930508 / PVC,
     817: 5.930508 / PVC,
+    850: 5.50968514 / PVC,
     855: 5.50968514 / PVC,
     865: 5.50968514 / PVC,
     885: 5.17117029 / PVC,
