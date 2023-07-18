@@ -288,7 +288,9 @@ class NIRS:
         # Backlight intensities (for used channels only)
         if backlight:
             backlight_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0] + '-backlight').with_suffix('.raw.fif')
-            self.raw_backlight = mne.io.read_raw_fif(backlight_file_path, preload=True).get_data()
+            raw_backlight = mne.io.read_raw_fif(backlight_file_path, preload=True)
+            raw_backlight.drop_channels([ch_name for ch_name in raw_backlight.ch_names if utils.get_s_d([ch_name])[0] not in self.S_D_USED])
+            self.raw_backlight = raw_backlight.get_data()
 
         return self.raw
 
