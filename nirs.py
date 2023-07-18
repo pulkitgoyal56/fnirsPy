@@ -768,7 +768,7 @@ class NIRS:
         if use_names:
             return raw.pick(utils.find_long_channels(raw.ch_names)[0])
         else:
-            return raw.pick(mne_nirs.channels.get_long_channels(raw, min_dist=min_dist, max_dist=max_dist))
+            return mne_nirs.channels.get_long_channels(raw, min_dist=min_dist, max_dist=max_dist)
 
     def scalp_coupling_index(raw, threshold=constants.THRESHOLD_SCI, *, plot_sci_drops=False):
         """Pick only channels with scalp coupling index above given threshold."""
