@@ -754,6 +754,15 @@ class NIRS:
         else:
             self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
 
+    def get_long_channels(raw, use_names=False, min_dist=constants.SS_MAX_DIST, max_dist=constants.LS_MAX_DIST):
+        """Return the mne.raw instance containing only long channels."""
+        raw = raw.copy()
+
+        if use_names:
+            return raw.pick(utils.find_long_channels(raw.ch_names)[0])
+        else:
+            return raw.pick(mne_nirs.channels.get_long_channels(raw, min_dist=min_dist, max_dist=max_dist))
+
     def scalp_coupling_index(raw, threshold=constants.THRESHOLD_SCI, *, plot_sci_drops=False):
         """Pick only channels with scalp coupling index above given threshold."""
         raw = raw.copy()
@@ -879,6 +888,7 @@ class NIRS:
             autopick_channels=True,
             short_channel_regression=True,
             pick_long_channels=True,
+            use_names=False,
             bandpass=True,
             negative_correlation_enhancement=True,
             threshold_sci=constants.THRESHOLD_SCI,
@@ -890,6 +900,8 @@ class NIRS:
             preserve_pairs=True,
             show_discarded=False,
             show_failed=False,
+            min_ls_dist=constants.SS_MAX_DIST,
+            max_ls_dist=constants.LS_MAX_DIST,
             ppf=constants.PPF,
             l_freq=constants.F_L,
             h_freq=constants.F_H,
@@ -933,16 +945,16 @@ class NIRS:
                                                   show_discarded=show_discarded, show_failed=show_failed, execute=autopick_channels),
                 NIRS.save(savepoints)('AP'),
             # Short-channel regression
-                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.SS_MAX_DIST, execute=short_channel_regression),
+                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=min_ls_dist, execute=short_channel_regression),
                 NIRS.save(savepoints)('SSR'),
             # Optical Densities -> HbO and HbR concentrations -- Modified Beer Lambert Law (MBLL)
                 # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law)(ppf=self.__attr('PPF', 0.1)),
-                NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=self.__attr('PPF', ppf)),
+                NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=self.__attr('PPF', ppf), use_names=use_names),
                 NIRS.save(savepoints)('HB'),
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
                 NIRS.save_short_channels,
-                NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.SS_MAX_DIST, max_dist=constants.LS_MAX_DIST, execute=pick_long_channels),
+                NIRS.wrap(NIRS.get_long_channels)(execute=pick_long_channels, use_names=use_names, min_dist=min_ls_dist, max_dist=max_ls_dist),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
                 NIRS.wrap(mne.filter.FilterMixin.filter)(
