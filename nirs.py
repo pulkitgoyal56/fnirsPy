@@ -962,7 +962,7 @@ class NIRS:
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
                 NIRS.save_short_channels,
-                NIRS.wrap(NIRS.get_long_channels)(execute=pick_long_channels, use_names=use_names, min_dist=min_ls_dist, max_dist=max_ls_dist),
+                NIRS.wrap(NIRS.get_long_channels)(use_names=use_names, min_dist=min_ls_dist, max_dist=max_ls_dist, execute=pick_long_channels),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
                 NIRS.wrap(mne.filter.FilterMixin.filter)(
