@@ -16,6 +16,9 @@ class DEVICE(object):
     # Long separation
     LS_SEPARATION = 0.03
 
+    # Sampling Frequency
+    S_FREQ = 1024/87
+
     # Time drift factor
     TIME_DRIFT_FACTOR = 1.0045 # 0.779
 
