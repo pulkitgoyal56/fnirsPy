@@ -719,21 +719,24 @@ class NIRS:
         return self.raw.copy()
 
     # @wrap
-    def remove_backlight(raw, raw_backlight):
+    def remove_backlight(raw, raw_backlight, regression=True):
         """Backlight removal based on interpolation/smoothing."""
         raw = raw.copy()
 
-        # Create design matrix of times (3rd order)
-        regressors = sm.tools.tools.add_constant(np.c_[(times := raw.times), times**2, times**3]) # Timestamp (^1, ^2, ^3)
+        if regression:
+            # Create design matrix of times (3rd order)
+            regressors = sm.tools.tools.add_constant(np.c_[(times := raw.times), times**2, times**3]) # Timestamp (^1, ^2, ^3)
 
-        # Fit RLM for every channel (row)
-        fitted_backlight = np.apply_along_axis(
-            lambda raw_backlight_ch: sm.RLM(raw_backlight_ch, regressors).fit().fittedvalues,
-            1, raw_backlight
-        )
-
-        # Subtract predicted backlight signal from raw data of all wavelengths to remove backlight
-        raw._data = raw.get_data() - np.repeat(fitted_backlight, int(len(raw.ch_names)/len(fitted_backlight)), axis=0)
+            # Fit RLM for every channel (row)
+            fitted_backlight = np.apply_along_axis(
+                lambda raw_backlight_ch: sm.RLM(raw_backlight_ch, regressors).fit().fittedvalues,
+                1, raw_backlight
+            )
+            # Subtract predicted backlight signal from raw data of all wavelengths to remove backlight
+            raw._data = raw.get_data() - np.repeat(fitted_backlight, int(len(raw.ch_names)/len(fitted_backlight)), axis=0)
+        else:
+            # Subtract raw backlight signal from raw data of all wavelengths to remove backlight
+            raw._data = raw.get_data() - np.repeat(raw_backlight, int(len(raw.ch_names)/len(raw_backlight)), axis=0)
 
         return raw
 
@@ -888,9 +891,9 @@ class NIRS:
             autopick_channels=True,
             short_channel_regression=True,
             pick_long_channels=True,
-            use_names=False,
             bandpass=True,
             negative_correlation_enhancement=True,
+            regression=True,
             threshold_sci=constants.THRESHOLD_SCI,
             l_heart_rate=constants.L_HEART_RATE,
             h_heart_rate=constants.H_HEART_RATE,
@@ -903,6 +906,7 @@ class NIRS:
             min_ls_dist=constants.SS_MAX_DIST,
             max_ls_dist=constants.LS_MAX_DIST,
             ppf=constants.PPF,
+            use_names=False,
             l_freq=constants.F_L,
             h_freq=constants.F_H,
             l_trans_bandwidth=constants.L_TRANS_BANDWIDTH,
@@ -929,7 +933,7 @@ class NIRS:
             # Save raw (CW amplitude) signals
                 NIRS.save(savepoints)('CW'),
             # Remove Backlight
-                NIRS.wrap(NIRS.remove_backlight)(self.raw_backlight, execute=remove_backlight),
+                NIRS.wrap(NIRS.remove_backlight)(self.raw_backlight, regression=regression, execute=remove_backlight),
                 NIRS.save(savepoints)('CWx'),
             # Convert raw (CW amplitude) to optical density (OD) signals
                 NIRS.wrap(mne.preprocessing.nirs.optical_density)(),
