@@ -2,8 +2,9 @@
 
 _fnirsPy_ is an open-source wrapper built on [MNE-Python](https://github.com/mne-tools/mne-python) (Gramfort et al., 2014) and [MNE-NIRS](https://github.com/mne-tools/mne-nirs) (Luke et al., 2021) that makes it easy to deploy complete yet customizable end-to-end data processing pipelines for custom near-infrared spectroscopy (NIRS) data with only a few lines of code. It is an imperative-style high-level API designed to be Pythonic, which focuses on minimum redundancy in code, so it augments and does not replace MNE, the functions of which users can still utilize harmoniously. It aims to implement a standardized procedure for handling fNIRS data to foster reproducibility in analysis and includes a default pipeline based on growing recommendations for standardized fNIRS data preprocessing steps in literature so that users can focus on the scientific question without much toil over writing code. The package also implements new methods that are not available in the underlying MNE software suite. Furthermore, a few additional plotting functions are included with fNIRS publication conventions in mind along with some handy utilities that provide frequently used functions.
 
-> The library is currently in pre-alpha and few of its functions are specifically developed for the in-development OptoHive fNIRS device by RELab (ETH Zürich) (Wyser et al., 2017).  
-> It is planned to be developed further to be able to read any task data following the [BIDS](https://bids.neuroimaging.io/) standard for neuroimaging data.
+> The library is currently in pre-alpha and few of its functions are specifically developed for the in-development OptoHive fNIRS device by RELab (ETH Zürich) (Wyser et al., 2017), which will be changed later.  
+
+> In the next stages of development, complete support for the [BIDS](https://bids.neuroimaging.io/) standard for neuroimaging data will be added among other features.
 
 ## Setup (for Debian-Based Linux)
 
