@@ -724,8 +724,8 @@ class NIRS:
                           n_fft=None, ma_size=constants.MA_SIZE, *,
                           preserve_pairs=True, show_discarded=False, show_failed=False):
         """Automatic channel selection -- Heart-rate based.
-        # > Fit Gaussian curve on the frequency spectrum of *HbO* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
-        # > Perdue, K. L.,Westerlund, A.,McCormick, S. A., and Nelson, C. A. (2014).
+        # > Fit Gaussian curve on the frequency spectrum of *OD* between 0.6 and 1.8 Hz and filter out signals with low signal power (0.12 dB).
+        # > Perdue, K. L., Westerlund, A., McCormick, S. A., and Nelson, C. A. (2014).
         # > Extraction of heart rate from functional near-infrared spectroscopy in infants.
         # > Journal of Biomedical Optics 19, 067010. doi:10.1117/1.JBO.19.6.067010
         # > https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4073682/
@@ -786,10 +786,13 @@ class NIRS:
         if discards:
             match preserve_pairs:
                 case False:
+                    # Discards both the channels in a pair if either of them is bad
                     discards = discards.union(utils.find_ch_pairs(psd.ch_names, discards))
                 case True:
+                    # Discards a pair only when both of its channels are bad
                     discards = set(utils.find_ch_paired(discards, psd.ch_names))
                 case None:
+                    # Discards single channels that are bad; doesn't consider pairs
                     pass
 
         def _make_overlay_plots(channels, title):
