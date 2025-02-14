@@ -189,6 +189,8 @@ class NIRS:
             case 'auto':
                 correction_factor = self.DUR['rec'] / self.DUR['exp']
                 logging.info(f'''Using Auto Correction Factor - {correction_factor}''')
+            case 'freq':
+                correction_factor = constants.DEVICE.S_FREQ/self.F_S
             case 'default' | True:
                 correction_factor = self._DEVICE.TIME_DRIFT_FACTOR
             case False | None:
@@ -288,7 +290,9 @@ class NIRS:
         # Backlight intensities (for used channels only)
         if backlight:
             backlight_file_path = raw_file_path.parent / pathlib.Path(raw_file_path.stem.split('.')[0] + '-backlight').with_suffix('.raw.fif')
-            self.raw_backlight = mne.io.read_raw_fif(backlight_file_path, preload=True).get_data()
+            raw_backlight = mne.io.read_raw_fif(backlight_file_path, preload=True)
+            raw_backlight.drop_channels([ch_name for ch_name in raw_backlight.ch_names if utils.get_s_d([ch_name])[0] not in self.S_D_USED])
+            self.raw_backlight = raw_backlight.get_data()
 
         return self.raw
 
@@ -534,6 +538,56 @@ class NIRS:
                 description=['HIGH' if condition >= 2 else 'LOW' for condition in self.mat['condition']]  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
             ))
 
+        elif self._PROJECT == 'NBack':
+            # `Stages of the experiment`
+            # > *\<exp\>* → **\[ *\<tri\>* → *\<ti.ms\>* → *\<ti.mi\>* → *\<ti.mp\>* → *\<ti.ri\>* → *\<ti.iti\>* → {data_write()} \]** → *\<expEnd\>*
+            # > *`T_REC_START`* ------ *`T_EXP_START`* == *0* ------------------------------------------------------------ *`T_EXP_END`* ------ *`T_REC_END`*
+
+            # Load Experiment Results
+            self.annotation_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_annotations').with_suffix('.txt')
+            # self.mat = pd.DataFrame(sc.io.loadmat(self.annotation_file_path)['onsets'], columns=[
+            #     'onsets',                # 0     # <>                            # onsets
+            #     'condition'              # 1     # <>                            # load condition
+            # ])
+            self.mat = pd.read_csv(self.annotation_file_path, skiprows=3, names=[
+                'onsets',                # 0     # <>                            # onsets
+                'duration',              # 1     # <>                            # onsets
+                'condition'              # 2     # <>                            # load condition
+            ])
+            
+            # Create dictionary of all the durations of a trial
+            self.DUR = pd.Series({
+                'condition': 5.0,                                                # condition info
+                'nback': 60.0,                                                   # task
+                'rest': 15.0,                                                    # inter trial interval
+            })
+            self.DUR['trial'] = sum(self.DUR)
+            self.F_E = 1/self.DUR['trial']
+
+            # Read experiment end time, relative to its start time, vis-à-vis its duration
+            # endtime_file_path = annotation_file_path.parent / pathlib.Path(annotation_file_path.stem.rsplit('_', 1)[0] + '_endtime').with_suffix('.mat')
+            # self.DUR['exp'] = float(sc.io.loadmat(endtime_file_path)['expEnd'])  # <expEnd - exp> -- duration of the entire experiment, in seconds
+            self.DUR['exp'] = self.mat.iloc[-1]['onsets'] + self.mat.iloc[-1]['duration']
+
+            # Set the duration of the recording
+            self.DUR['rec'] = self.T_REC_END     # - self.T_REC_START            # recording duration, in seconds
+
+            # Read experiment end time and set start time
+            # self.T_EXP_START = 0               # <exp>                         # experiment start time, in seconds; offset due to trigger delay, in seconds
+            self.T_EXP_END = self.T_EXP_START + self.DUR['exp']                  # experiment end time, in seconds
+
+            # There could be time differences in the fNIRS recordings and experiment, due to fast/slow clocks of the device.
+            # This can be corrected by scaling the recording times and frequencies by a correction factor.
+            # The correction factor is greater than 1 if `DUR['rec']` > `DUR['exp']`, and vice versa.
+            self.correct_time(**kwargs)
+
+            # Set annotations in the Raw object
+            self.raw.set_annotations(mne.Annotations(
+                onset=self.mat['onsets'], # - self.T_REC_START
+                duration=self.mat['duration'],
+                description=self.mat['condition']  # TODO: Read alternative annotation descriptions from kwargs or introduce new `description` argument.
+            ))
+
     def read_montage(self, montage_file_path, *, augment=True, transform=True, reference_locations=constants.DEFAULT_REFERENCE_LOCATIONS, reference=constants.DEFAULT_REFERENCE, **kwargs):
         """Read location data."""
         self.montage_file_path = pathlib.Path(montage_file_path).with_suffix('.elc')
@@ -669,21 +723,24 @@ class NIRS:
         return self.raw.copy()
 
     # @wrap
-    def remove_backlight(raw, raw_backlight):
+    def remove_backlight(raw, raw_backlight, regression=True):
         """Backlight removal based on interpolation/smoothing."""
         raw = raw.copy()
 
-        # Create design matrix of times (3rd order)
-        regressors = sm.tools.tools.add_constant(np.c_[(times := raw.times), times**2, times**3]) # Timestamp (^1, ^2, ^3)
+        if regression:
+            # Create design matrix of times (3rd order)
+            regressors = sm.tools.tools.add_constant(np.c_[(times := raw.times), times**2, times**3]) # Timestamp (^1, ^2, ^3)
 
-        # Fit RLM for every channel (row)
-        fitted_backlight = np.apply_along_axis(
-            lambda raw_backlight_ch: sm.RLM(raw_backlight_ch, regressors).fit().fittedvalues,
-            1, raw_backlight
-        )
-
-        # Subtract predicted backlight signal from raw data of all wavelengths to remove backlight
-        raw._data = raw.get_data() - np.repeat(fitted_backlight, int(len(raw.ch_names)/len(fitted_backlight)), axis=0)
+            # Fit RLM for every channel (row)
+            fitted_backlight = np.apply_along_axis(
+                lambda raw_backlight_ch: sm.RLM(raw_backlight_ch, regressors).fit().fittedvalues,
+                1, raw_backlight
+            )
+            # Subtract predicted backlight signal from raw data of all wavelengths to remove backlight
+            raw._data = raw.get_data() - np.repeat(fitted_backlight, int(len(raw.ch_names)/len(fitted_backlight)), axis=0)
+        else:
+            # Subtract raw backlight signal from raw data of all wavelengths to remove backlight
+            raw._data = raw.get_data() - np.repeat(raw_backlight, int(len(raw.ch_names)/len(raw_backlight)), axis=0)
 
         return raw
 
@@ -703,6 +760,15 @@ class NIRS:
             self.raw_ss = self.raw.copy().drop_channels(utils.find_long_channels(self.raw.ch_names)[0])
         else:
             self.raw_ss = mne_nirs.channels.get_short_channels(self.raw, max_dist=max_dist)
+
+    def get_long_channels(raw, use_names=False, min_dist=constants.SS_MAX_DIST, max_dist=constants.LS_MAX_DIST):
+        """Return the mne.raw instance containing only long channels."""
+        raw = raw.copy()
+
+        if use_names:
+            return raw.pick(utils.find_long_channels(raw.ch_names)[0])
+        else:
+            return mne_nirs.channels.get_long_channels(raw, min_dist=min_dist, max_dist=max_dist)
 
     def scalp_coupling_index(raw, threshold=constants.THRESHOLD_SCI, *, plot_sci_drops=False):
         """Pick only channels with scalp coupling index above given threshold."""
@@ -834,6 +900,7 @@ class NIRS:
             pick_long_channels=True,
             bandpass=True,
             negative_correlation_enhancement=True,
+            regression=True,
             threshold_sci=constants.THRESHOLD_SCI,
             l_heart_rate=constants.L_HEART_RATE,
             h_heart_rate=constants.H_HEART_RATE,
@@ -843,7 +910,10 @@ class NIRS:
             preserve_pairs=True,
             show_discarded=False,
             show_failed=False,
+            min_ls_dist=constants.SS_MAX_DIST,
+            max_ls_dist=constants.LS_MAX_DIST,
             ppf=constants.PPF,
+            use_names=False,
             l_freq=constants.F_L,
             h_freq=constants.F_H,
             l_trans_bandwidth=constants.L_TRANS_BANDWIDTH,
@@ -870,7 +940,7 @@ class NIRS:
             # Save raw (CW amplitude) signals
                 NIRS.save(savepoints)('CW'),
             # Remove Backlight
-                NIRS.wrap(NIRS.remove_backlight)(self.raw_backlight, execute=remove_backlight),
+                NIRS.wrap(NIRS.remove_backlight)(self.raw_backlight, regression=regression, execute=remove_backlight),
                 NIRS.save(savepoints)('CWx'),
             # Convert raw (CW amplitude) to optical density (OD) signals
                 NIRS.wrap(mne.preprocessing.nirs.optical_density)(),
@@ -886,16 +956,16 @@ class NIRS:
                                                   show_discarded=show_discarded, show_failed=show_failed, execute=autopick_channels),
                 NIRS.save(savepoints)('AP'),
             # Short-channel regression
-                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=constants.SS_MAX_DIST, execute=short_channel_regression),
+                NIRS.wrap(mne_nirs.signal_enhancement.short_channel_regression)(max_dist=min_ls_dist, execute=short_channel_regression),
                 NIRS.save(savepoints)('SSR'),
             # Optical Densities -> HbO and HbR concentrations -- Modified Beer Lambert Law (MBLL)
                 # NIRS.wrap(mne.preprocessing.nirs.beer_lambert_law)(ppf=self.__attr('PPF', 0.1)),
-                NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=self.__attr('PPF', ppf)),
+                NIRS.wrap(mbll.modified_beer_lambert_law)(ppf=self.__attr('PPF', ppf), use_names=use_names),
                 NIRS.save(savepoints)('HB'),
             # Pick long channels
                 # Picking long channels removes all short channels, so before moving to that step, the short channels must be preserved
                 NIRS.save_short_channels,
-                NIRS.wrap(mne_nirs.channels.get_long_channels)(min_dist=constants.SS_MAX_DIST, max_dist=constants.LS_MAX_DIST, execute=pick_long_channels),
+                NIRS.wrap(NIRS.get_long_channels)(use_names=use_names, min_dist=min_ls_dist, max_dist=max_ls_dist, execute=pick_long_channels),
                 NIRS.save(savepoints)('LS'),
             # Filter frequencies outside hemodynamic response range
                 NIRS.wrap(mne.filter.FilterMixin.filter)(

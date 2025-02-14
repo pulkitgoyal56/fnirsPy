@@ -15,8 +15,9 @@ from mne.utils import _validate_type
 from mne.preprocessing.nirs import source_detector_distances, _validate_nirs_info
 
 import constants
+import utils
 
-def modified_beer_lambert_law(raw, ppf=constants.PPF):
+def modified_beer_lambert_law(raw, ppf=constants.PPF, use_names=False):
     r"""Convert NIRS optical density data to haemoglobin concentration.
 
     Parameters
@@ -39,7 +40,11 @@ def modified_beer_lambert_law(raw, ppf=constants.PPF):
     # This is the one place we *really* need the actual/accurate frequencies
     freqs = np.array([raw.info['chs'][pick]['loc'][9] for pick in picks], float)
     abs_coef = _load_absorption(freqs)
-    distances = source_detector_distances(raw.info, picks='all')
+    if use_names:
+        # The following line of code sets the distances between the source and the detector based on the names of the channels.
+        distances = np.array([constants.DEVICE.SS_SEPARATION if utils.is_short_channel(ch_name) else constants.DEVICE.LS_SEPARATION for ch_name in raw.ch_names])
+    else:
+        distances = source_detector_distances(raw.info, picks='all')
     bad = ~np.isfinite(distances[picks])
     bad |= distances[picks] <= 0
     if bad.any():
